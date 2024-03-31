@@ -1,8 +1,8 @@
 [package]
-name = "io_uring-epoll"
+name = "io-uring-epoll"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-io-uring = { version = "0.7" }
+io-uring = { version = "0.6" }
 libc = { version = "0.2" }
