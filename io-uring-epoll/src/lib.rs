@@ -9,6 +9,7 @@
 
 use io_uring::opcode::EpollCtl;
 use io_uring::IoUring;
+
 use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::os::fd::RawFd;
@@ -26,6 +27,8 @@ pub enum EpollHandlerError {
     Probing(String),
     /// The Fd is already in the handler and would override existing
     Duplicate,
+    /// Something went yoinks in io_uring::IoRing::submit[_and_wait]
+    Submission(String),
 }
 
 impl core::fmt::Display for EpollHandlerError {
@@ -43,6 +46,7 @@ impl core::fmt::Display for EpollHandlerError {
                 s
             ),
             Self::Duplicate => write!(f, "The filehandle is already maped in. Possible duplicate?"),
+            Self::Submission(s) => write!(f, "Submission: {}", s),
         }
     }
 }
@@ -123,17 +127,33 @@ impl<'fd> EpollHandler<'fd> {
             fds: HashMap::new(),
         })
     }
+    /// Borrow the underlying io-uring::IoUring instance
+    pub fn io_uring(&mut self) -> &mut IoUring<io_uring::squeue::Entry, io_uring::cqueue::Entry> {
+        &mut self.io_uring
+    }
     /// Add [`HandledFd`]
     /// Finally Commit changes to all changed HandledFds with [`EpollHandler::commit`]
     pub fn add_fd(&mut self, handled_fd: &'fd HandledFd) -> Result<(), EpollHandlerError> {
         self.fds.insert(handled_fd.fd, handled_fd);
         Ok(())
     }
-    /// Commit all changed [`HandledFd`] to kernel
-    /// This will submit all changes to SubmissionQueue and may not be immediately set
-    /// The setting/s may also fail and leave hanging in pending change over commit
-    /// Submission errors related on any individual Fds is available via FdCommitResults
-    pub fn commit(&mut self) -> Result<FdCommitResults<'fd>, EpollHandlerError> {
+    /// This calls the underlying io_uring::IoUring::submit submitting all the staged commits
+    pub fn submit(&self) -> Result<usize, EpollHandlerError> {
+        self.io_uring
+            .submit()
+            .map_err(|e| EpollHandlerError::Submission(e.to_string()))
+    }
+    /// Same as submit but using io_uring::IoUring::submit_and_wait
+    pub fn submit_and_wait(&self, want: usize) -> Result<usize, EpollHandlerError> {
+        self.io_uring
+            .submit_and_wait(want)
+            .map_err(|e| EpollHandlerError::Submission(e.to_string()))
+    }
+    /// Stage commit of all changed [`HandledFd`] resources to submission queue
+    /// This will make all changes within the underlying io_uring::squeue::SubmissionQueue
+    /// Errors related on any individual staged Fds are available via FdCommitResults
+    /// Use the [`Self::submit`] or [`Self::submit_and_wait`] to push the commits to kernel
+    pub fn prepare_submit(&mut self) -> Result<FdCommitResults<'fd>, EpollHandlerError> {
         let mut fd_commit_results = FdCommitResults {
             new_commits: 0,
             change_commits: 0,
@@ -141,6 +161,8 @@ impl<'fd> EpollHandler<'fd> {
             empty: 0,
             errors_on_submit: vec![],
         };
+
+        // TODO: this is too long - split & refactor
 
         let iou = &mut self.io_uring;
 
@@ -203,11 +225,23 @@ impl<'fd> EpollHandler<'fd> {
                     }
                 }
             } else {
+                // TODO: too long - refactor
                 fd_commit_results.empty += 1;
             }
 
+            // TODO: cursed
             if new_fd != **handled_fd {
                 updates.push_back(new_fd);
+            }
+        }
+
+        // TODO: This is a &&cursed &'mut &'fd situation ?!
+        while let Some(update) = updates.pop_front() {
+            let fd_get: Option<&&HandledFd> = self.fds.get(&update.fd);
+            if let Some(unwrapped_fd) = fd_get {
+                let mut pinned_mut: std::pin::Pin<&mut &HandledFd> = std::pin::pin!(*unwrapped_fd);
+                let pinned_update: std::pin::Pin<&mut &HandledFd> = std::pin::pin!(&update);
+                let _st = std::mem::replace(&mut pinned_mut, pinned_update);
             }
         }
 
@@ -271,6 +305,10 @@ impl HandledFd {
     /// EPOLLOUT
     pub fn set_out(&mut self, on_or_off: bool) -> i32 {
         self.turn_on_or_off(libc::EPOLLOUT, on_or_off)
+    }
+    /// EPOLLERR
+    pub fn set_err(&mut self, on_or_off: bool) -> i32 {
+        self.turn_on_or_off(libc::EPOLLERR, on_or_off)
     }
     /// EPOLLHUP
     pub fn set_hup(&mut self, on_or_off: bool) -> i32 {
@@ -342,9 +380,138 @@ impl HandledFd {
 /// Represents Submission queue results as described in [`EpollHandler::commit`]
 #[derive(Debug)]
 pub struct FdCommitResults<'fd> {
-    new_commits: u32,
-    change_commits: u32,
-    no_change: u32,
-    empty: u32,
-    errors_on_submit: Vec<&'fd HandledFd>,
+    pub(crate) new_commits: u32,
+    pub(crate) change_commits: u32,
+    pub(crate) no_change: u32,
+    pub(crate) empty: u32,
+    pub(crate) errors_on_submit: Vec<&'fd HandledFd>,
+}
+
+impl<'fd> FdCommitResults<'fd> {
+    /// How many new EPOLL_ADD entries in SubmissionQueue
+    pub fn count_new(&self) -> u32 {
+        self.new_commits
+    }
+    /// How many nw EPOLL_MOD entries in SubmissionQueue
+    pub fn count_changes(&self) -> u32 {
+        self.change_commits
+    }
+    /// How many handles did not see any changes
+    pub fn count_no_changes(&self) -> u32 {
+        self.no_change
+    }
+    /// How many handles are empty
+    pub fn count_empty(&self) -> u32 {
+        self.empty
+    }
+    /// How many updates gave error upon submission
+    pub fn errors(&'fd self) -> &'fd Vec<&'fd HandledFd> {
+        &self.errors_on_submit
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::HandledFd;
+    use std::net::{IpAddr, Ipv4Addr, SocketAddr, TcpListener};
+    use std::os::fd::AsRawFd;
+
+    fn handle_fd() -> HandledFd {
+        let s =
+            TcpListener::bind(SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0)).unwrap();
+        HandledFd::new(s.as_raw_fd())
+    }
+
+    #[test]
+    fn mask_fd_inouts() {
+        let mut fd = handle_fd();
+        fd.set_in(true);
+        assert_eq!(fd.set_out(true), 5);
+        assert_eq!(fd.set_in(false), 4);
+        assert_eq!(fd.set_out(false), 0);
+    }
+    #[test]
+    fn mask_fd_in() {
+        let mut fd = handle_fd();
+        assert_eq!(fd.set_in(true), 1);
+        assert_eq!(fd.set_in(false), 0);
+    }
+    #[test]
+    fn mask_fd_pri() {
+        let mut fd = handle_fd();
+        assert_eq!(fd.set_pri(true), 2);
+        assert_eq!(fd.set_pri(false), 0);
+    }
+    #[test]
+    fn mask_fd_out() {
+        let mut fd = handle_fd();
+        assert_eq!(fd.set_out(true), 4);
+        assert_eq!(fd.set_out(false), 0);
+    }
+    #[test]
+    fn mask_fd_err() {
+        let mut fd = handle_fd();
+        assert_eq!(fd.set_err(true), 8);
+        assert_eq!(fd.set_err(false), 0);
+    }
+    #[test]
+    fn mask_fd_hup() {
+        let mut fd = handle_fd();
+        assert_eq!(fd.set_hup(true), 0x00000010);
+        assert_eq!(fd.set_hup(false), 0);
+    }
+    #[test]
+    fn mask_fd_rdnorm() {
+        let mut fd = handle_fd();
+        assert_eq!(fd.set_rdnorm(true), 0x00000040);
+        assert_eq!(fd.set_rdnorm(false), 0);
+    }
+    #[test]
+    fn mask_fd_rdband() {
+        let mut fd = handle_fd();
+        assert_eq!(fd.set_rdband(true), 0x00000080);
+        assert_eq!(fd.set_rdband(false), 0);
+    }
+    #[test]
+    fn mask_fd_wrnorm() {
+        let mut fd = handle_fd();
+        assert_eq!(fd.set_wrnorm(true), 0x00000100);
+        assert_eq!(fd.set_wrnorm(false), 0);
+    }
+    #[test]
+    fn mask_fd_wrband() {
+        let mut fd = handle_fd();
+        assert_eq!(fd.set_wrband(true), 0x00000200);
+        assert_eq!(fd.set_wrband(false), 0);
+    }
+    #[test]
+    fn mask_fd_msg() {
+        let mut fd = handle_fd();
+        assert_eq!(fd.set_msg(true), 0x00000400);
+        assert_eq!(fd.set_msg(false), 0);
+    }
+    #[test]
+    fn mask_fd_rdhup() {
+        let mut fd = handle_fd();
+        assert_eq!(fd.set_rdhup(true), 0x00002000);
+        assert_eq!(fd.set_rdhup(false), 0);
+    }
+    #[test]
+    fn mask_fd_wakeup() {
+        let mut fd = handle_fd();
+        assert_eq!(fd.set_wakeup(true), 0x20000000);
+        assert_eq!(fd.set_wakeup(false), 0);
+    }
+    #[test]
+    fn mask_fd_oneshot() {
+        let mut fd = handle_fd();
+        assert_eq!(fd.set_oneshot(true), 0x40000000);
+        assert_eq!(fd.set_oneshot(false), 0);
+    }
+    #[test]
+    fn mask_fd_et() {
+        let mut fd = handle_fd();
+        assert_eq!(fd.set_et(true) as u32, 0x80000000);
+        assert_eq!(fd.set_et(false), 0);
+    }
 }
