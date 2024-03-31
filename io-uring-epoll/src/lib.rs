@@ -250,7 +250,7 @@ impl<'fd> EpollHandler<'fd> {
 }
 
 /// Create [`HandledFd::new(RawFd)`] and then add it to [`EpollHandler::add_fd()`]
-/// 
+///
 /// *WARNING*: Your kernel may or may not have all wanted modes available
 /// Consult your kernels epoll.h header to be sure and / or test if needed
 #[derive(Debug, Clone, PartialEq)]
