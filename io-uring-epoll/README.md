@@ -55,6 +55,16 @@ let handle_status = handler.prepare_submit().unwrap();
 // async version is with submit()
 handler.submit_and_wait(1).unwrap();
 
+// Get the underlying io_uring::cqeueu::CompletionQueue
+let mut c_queue = handler.io_uring().completion();
+
+// Note: This may not have finished so may need to wait for it
+if c_queue.is_empty() == false {
+    let cqes: Vec<io_uring::cqueue::Entry> = c_queue.take_while(|i| {
+        dbg!(i);
+        false
+    }).collect();
+}
 ```
 
 ## License
