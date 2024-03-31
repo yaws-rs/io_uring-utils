@@ -51,10 +51,10 @@ impl core::fmt::Display for EpollHandlerError {
     }
 }
 
-/// EpollHandler manages the io_uring Submission and Completion Queues
-/// related to EpollCtrl over saving system calls to do the same
-/// For more related to io_epoll(7) see:
-/// https://man7.org/linux/man-pages/man7/epoll.7.html
+/// Manage the io_uring Submission and Completion Queues
+/// related to EpollCtrl opcode in io_uring.
+/// See io_epoll(7):
+/// <https://man7.org/linux/man-pages/man7/epoll.7.html>
 pub struct EpollHandler<'fd> {
     pub(crate) epfd: u32,
     pub(crate) io_uring: IoUring<io_uring::squeue::Entry, io_uring::cqueue::Entry>,
@@ -81,7 +81,7 @@ impl<'fd> EpollHandler<'fd> {
     }
     /// Create a new handler from an existing io-uring::IoUring builder
     /// To construct a custom IoUring see io-uring Builder:
-    /// https://docs.rs/io-uring/latest/io_uring/struct.Builder.html
+    /// <https://docs.rs/io-uring/latest/io_uring/struct.Builder.html>
     ///
     /// Example:
     /// ```rust
@@ -132,7 +132,7 @@ impl<'fd> EpollHandler<'fd> {
         &mut self.io_uring
     }
     /// Add [`HandledFd`]
-    /// Finally Commit changes to all changed HandledFds with [`EpollHandler::commit`]
+    /// Finally Commit changes to all changed HandledFds with [`EpollHandler::prepare_submit()`]
     pub fn add_fd(&mut self, handled_fd: &'fd HandledFd) -> Result<(), EpollHandlerError> {
         self.fds.insert(handled_fd.fd, handled_fd);
         Ok(())
@@ -249,8 +249,9 @@ impl<'fd> EpollHandler<'fd> {
     }
 }
 
-/// Create it via [`EpollHandler::add_raw_fd`]
-/// WARNING: Your kernel may or may not have all wanted modes available
+/// Create [`HandledFd::new(RawFd)`] and then add it to [`EpollHandler::add_fd()`]
+/// 
+/// *WARNING*: Your kernel may or may not have all wanted modes available
 /// Consult your kernels epoll.h header to be sure and / or test if needed
 #[derive(Debug, Clone, PartialEq)]
 pub struct HandledFd {
@@ -268,7 +269,7 @@ const EPOLL_CTL_MOD: i32 = 3;
 
 impl HandledFd {
     /// Create a new EpollHandler associated [`HandledFd`]
-    /// Then add via [`EpollHandler::add_fd`]
+    /// Then add via [`EpollHandler::add_fd()`]
     pub fn new(fd: RawFd) -> Self {
         HandledFd {
             fd,
@@ -294,7 +295,7 @@ impl HandledFd {
     }
     /// Set EPOLLIN per epoll.h in userspace On or Off
     /// Returns returns raw mask as to be sent to kernel
-    /// Use [`EpollHandler::commit`] to commit all pending changes after        
+    /// Use [`EpollHandler::prepare_submit()`] after
     pub fn set_in(&mut self, on_or_off: bool) -> i32 {
         self.turn_on_or_off(libc::EPOLLIN, on_or_off)
     }
@@ -352,32 +353,33 @@ impl HandledFd {
     }
     /// Get the raw u32 Epoll event mask as set in userspace
     /// This may not have been sent and may be pending send or not committed
-    /// Use [`EpollHandler::commit`] to commit all pending changes if any
+    /// Use [`EpollHandler::prepare_submit()`] after
     pub fn get_mask_raw(&mut self) -> Option<i32> {
         self.wants
     }
     /// Set the raw u32 Epoll event mask in the userspace
     /// *WARNING*: Ensure this is valid per epoll.h of your kernel
-    /// Use [`EpollHandler::commit`] to commit all pending changes after
+    /// Use [`EpollHandler::prepare_submit()`] after
     pub fn set_mask_raw(&mut self, mask: i32) {
         self.wants = Some(mask);
     }
     /// Get the pending eq u32 Epoll
     /// This may not be committed into kernel yet use get_committed to check
     /// This will be none if there is no pending change or it has not been sent
-    /// Use [`EpollHandler::commit`] to re-commit all pending changes if any
+    /// Use [`EpollHandler::prepare_submit()`] after
     pub fn get_pending(&self) -> Option<i32> {
         self.pending
     }
-    /// Get the committed raw u32 Epoll event mask if any
-    /// This represents the state that has been confirmed by the kernel
-    /// Use [`EpollHandler::commit`] to commit all pending changes if any
-    pub fn get_committed(&self) -> Option<i32> {
-        self.committed
-    }
+    // /// Get the committed raw u32 Epoll event mask if any
+    // /// This represents the state that has been confirmed by the kernel
+    // /// Use [`EpollHandler::commit()`] to commit all pending changes if any
+    // TODO: handle this internally
+    //pub fn get_committed(&self) -> Option<i32> {
+    //    self.committed
+    //}
 }
 
-/// Represents Submission queue results as described in [`EpollHandler::commit`]
+/// Represents Submission queue results as described in [`EpollHandler::commit()`]
 #[derive(Debug)]
 pub struct FdCommitResults<'fd> {
     pub(crate) new_commits: u32,
