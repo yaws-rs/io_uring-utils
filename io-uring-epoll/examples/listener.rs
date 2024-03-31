@@ -45,4 +45,18 @@ fn main() {
     assert_eq!(submission.cq_overflow(), false);
     assert_eq!(submission.is_full(), false);
     drop(submission);
+
+    let c_queue = handler.io_uring().completion();
+    let mut c_attempts = 0;
+    loop {
+        if c_queue.is_empty() == false {
+            assert_eq!(c_queue.len(), 1);
+            break;
+        }
+        if c_attempts == 10 {
+            panic!("Took more than 100 ms - completion never finished?");
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+        c_attempts += 1;
+    }
 }
