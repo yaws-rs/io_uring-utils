@@ -4,7 +4,10 @@
 
 ![meme what If I told you your epoll is in your io_uring](https://cdn.jsdelivr.net/gh/yaws-rs/io_uring-utils@main/io-uring-epoll/assets/meme_epoll_io_uring.jpg)
 
-When io_uring meets epoll it will save system calls for setting file handle readiness checks
+When io_uring meets epoll
+
+This will save system calls for setting file handle readiness checks especially in busy
+eventloops that have a lot of on/off readiness activity.
 
 Please note that epoll is different to reqular poll and is only available on Linux kernel
 
@@ -12,7 +15,7 @@ Epoll itself has been in the Linux kernel around 20 years but io_uring has recen
 the EpollCtl OpCode support in order to bypass the need of systerm calls to control it.
 
 This is not a portable implementation given Windows I/O rings or MacOS doesn't provide
-anything related.
+anything related with their relevant epoll implementations if any.
 
 Add to dependencies
 ```ignore
