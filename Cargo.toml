@@ -1,0 +1,8 @@
+[package]
+name = "io_uring-utils"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+io-uring = { version = "0.7" }
+libc = { version = "0.2" }
