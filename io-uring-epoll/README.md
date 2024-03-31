@@ -2,7 +2,7 @@
 
 [![Discord chat][discord-badge]][discord-url]
 
-[!meme what If I told you your epoll is in your io_uring](https://cdn.jsdelivr.net/gh/yaws-rs/io_uring-utils@main/io-uring-epoll/assets/meme_epoll_io_uring.jpg)
+![meme what If I told you your epoll is in your io_uring](https://cdn.jsdelivr.net/gh/yaws-rs/io_uring-utils@main/io-uring-epoll/assets/meme_epoll_io_uring.jpg)
 
 When io_uring meets epoll it will save system calls for setting file handle readiness checks
 
