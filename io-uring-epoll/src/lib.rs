@@ -81,10 +81,12 @@ impl<'fd> EpollHandler<'fd> {
     ///
     /// Example:
     /// ```rust
+    /// use io_uring::IoUring;
+    /// use io_uring_epoll::EpollHandler;
     ///
     /// let mut iou: IoUring<io_uring::squeue::Entry, io_uring::cqueue::Entry>
     ///     = IoUring::builder()
-    ///         .build(cap)
+    ///         .build(100)
     ///         .expect("Unable to build IoUring");
     ///
     /// EpollHandler::from_io_uring(iou).expect("Unable to create from io_uring Builder");
