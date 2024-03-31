@@ -11,16 +11,18 @@
 
 When io_uring meets epoll
 
-This will save system calls for setting file handle readiness checks especially in busy
+Save system calls for setting file handle readiness checks especially in busy
 eventloops that have a lot of on/off readiness activity.
 
-Please note that epoll is different to reqular poll and is only available on Linux kernel
+Please note that epoll is different to reqular poll and is only available on
+Linux kernel
 
-Epoll itself has been in the Linux kernel around 20 years but io_uring has recently added
-the EpollCtl OpCode support in order to bypass the need of systerm calls to control it.
+Epoll itself has been in the Linux kernel around 20 years but io_uring has
+recently added the EpollCtl OpCode support in order to bypass the need of
+systerm calls to control it.
 
-This is not a portable implementation given Windows I/O rings or MacOS doesn't provide
-anything related with their relevant epoll implementations if any.
+This is not a portable implementation given Windows I/O rings or MacOS doesn't
+provide anything related with their relevant epoll implementations if any.
 
 Add to dependencies
 ```ignore
