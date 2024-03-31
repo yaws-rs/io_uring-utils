@@ -4,5 +4,5 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-io-uring-epoll = { version = "0.1", path = "../.." }
+io-uring-epoll = { version = "0.1", path = "../../io-uring-epoll" }
 tokio-uring = { version = "0.4" }

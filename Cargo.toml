@@ -1,4 +1,4 @@
 [workspace]
-members = ["io-uring-epoll", "io-uring-epoll/examples/tokio-uring-epoll" ]
+members = ["io-uring-epoll", "examples/*" ]
 
 resolver = "2"
