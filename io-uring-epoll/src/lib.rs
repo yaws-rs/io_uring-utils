@@ -1,14 +1,12 @@
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
+#![warn(
+    clippy::unwrap_used,
+    missing_docs,
+    rust_2018_idioms,
+    unused_lifetimes,
+    unused_qualifications
+)]
+#![doc = include_str!("../README.md")]
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+pub mod epoll;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+
