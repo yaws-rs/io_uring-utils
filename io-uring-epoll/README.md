@@ -24,12 +24,12 @@ systerm calls to control it.
 This is not a portable implementation given Windows I/O rings or MacOS doesn't
 provide anything related with their relevant epoll implementations if any.
 
-Add to dependencies
+*Add*
 ```ignore
 cargo add io-uring-epoll
 ```
 
-Example
+*Example*
 ```rust
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::os::fd::AsRawFd;
