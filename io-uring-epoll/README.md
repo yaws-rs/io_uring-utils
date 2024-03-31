@@ -2,6 +2,18 @@
 
 [![Discord chat][discord-badge]][discord-url]
 
+[!meme what If I told you your epoll is in your io_uring](https://cdn.jsdelivr.net/gh/yaws-rs/io_uring-utils@main/io-uring-epoll/assets/meme_epoll_io_uring.jpg)
+
+When io_uring meets epoll it will save system calls for setting file handle readiness checks
+
+Please note that epoll is different to reqular poll and is only available on Linux kernel
+
+Epoll itself has been in the Linux kernel around 20 years but io_uring has recently added
+the EpollCtl OpCode support in order to bypass the need of systerm calls to control it.
+
+This is not a portable implementation given Windows I/O rings or MacOS doesn't provide
+anything related.
+
 ```ignore
 cargo add io-uring-epoll
 ```
@@ -33,25 +45,26 @@ assert_eq!(handle_status.errors().len(), 0);
 
 // Take temp ref to io_uring::SubmissionQeueue
 let submission  = handler.io_uring().submission();
-assert_eq!(submission.dropped(), 0);
-assert_eq!(submission.cq_overflow(), false);
-assert_eq!(submission.taskrun(), false);
-assert_eq!(submission.capacity(), 16);
 assert_eq!(submission.len(), 1);
 assert_eq!(submission.is_empty(), false);
+assert_eq!(submission.dropped(), 0);
+assert_eq!(submission.cq_overflow(), false);
 assert_eq!(submission.is_full(), false);
 drop(submission);
 
+// async version is with submit()
 handler.submit_and_wait(1).unwrap();
 
 // Ensure that the kernel ate it
 let submission  = handler.io_uring().submission();
-assert_eq!(submission.dropped(), 0);
-assert_eq!(submission.cq_overflow(), false);
 assert_eq!(submission.len(), 0);
 assert_eq!(submission.is_empty(), true);
+assert_eq!(submission.dropped(), 0);
+assert_eq!(submission.cq_overflow(), false);
 assert_eq!(submission.is_full(), false);
 drop(submission);
+
+
 
 ```
 
