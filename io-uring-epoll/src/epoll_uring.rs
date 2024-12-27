@@ -1,12 +1,19 @@
+//! Epoll Uring Handler
+
+use crate::error::EpollUringHandlerError;
 use crate::HandledFd;
+
+use crate::slab::{AcceptRec, EpollRec};
 
 use io_uring::opcode::EpollCtl;
 use io_uring::IoUring;
 
 use std::os::fd::RawFd;
 
+/// Type of Fd mainly used by the safe API
 #[derive(Debug)]
-pub enum FdKind {
+#[allow(dead_code)] // TODO Safe API
+pub(crate) enum FdKind {
     /// Epoll ctl handle
     EpollCtl,
     /// EPoll Event Handle
@@ -17,17 +24,23 @@ pub enum FdKind {
     Manual,
 }
 
+/// FDs registered with Kernel for io_uring
 #[derive(Debug)]
-pub struct RegisteredFd {
+pub(crate) struct RegisteredFd {
+    /// Type of registered handle
+    #[allow(dead_code)] // TODO Safe API
     kind: FdKind,
+    /// RawFD of the registered handle
     raw_fd: RawFd,
 }
 
+/// Completion types
 #[derive(Debug)]
 pub enum Completion {
-    //    EpollEvent(libc::epoll_event),
-    EpollEvent(epoll_ctl::EpollRec),
-    Accept(accept::AcceptRec),
+    /// EpollCtl Completion
+    EpollEvent(EpollRec),
+    /// Accept Completion
+    Accept(AcceptRec),
 }
 
 /// What to do with the submission record upon handling completion.
@@ -147,6 +160,11 @@ impl EpollUringHandler {
     pub fn epfd(&self) -> RawFd {
         self.epfd
     }
+    /// Register Acceptor handle used later with commit_registered_handles
+    ///
+    /// # Fd Validity
+    ///
+    /// User is responsibe of ensuring fd is valid
     pub fn register_acceptor(&mut self, fd: RawFd) -> Result<usize, EpollUringHandlerError> {
         let entry = self.fd_register.vacant_entry();
         let key = entry.key();
@@ -177,12 +195,37 @@ impl EpollUringHandler {
 
         let slice_i32: &[i32] = &vec_i32[0..];
 
-        submitter.register_files(slice_i32);
+        submitter
+            .register_files(slice_i32)
+            .map_err(|e| EpollUringHandlerError::RegisterHandles(e.to_string()))?;
 
         Ok(())
     }
-    /// Spin the completions ring
-    pub fn handle_completions<F, U>(
+    /// Spin the completions ring with custom handling without touching the
+    /// original submission record
+    pub fn completions<F, U>(&mut self, user: &mut U, func: F) -> Result<(), EpollUringHandlerError>
+    where
+        F: Fn(&mut U, &io_uring::cqueue::Entry, &Completion) -> (),
+    {
+        // SAFETY: We Retain the original record and don't move it.
+        unsafe {
+            self.handle_completions(user, |u, e, rec| {
+                func(u, e, rec);
+                SubmissionRecordStatus::Retain
+            })
+        }
+    }
+    /// Spin the completions ring with custom handling on the original submission record.
+    /// See [`completions`] for the safe variant that requires retaining
+    /// the original submission record.
+    ///
+    /// # Safety
+    ///
+    /// Record must be retained if it is to be used after handling it
+    /// e.g. EpollEvent record must be retained if it will trigger again given
+    /// kernel still refers to it upon it triggering where as upon deleting handle
+    /// from EpollCtl it can be only deleted after it has been confirmed as deleted.
+    pub unsafe fn handle_completions<F, U>(
         &mut self,
         user: &mut U,
         func: F,
@@ -249,8 +292,14 @@ impl EpollUringHandler {
         let key = entry.key();
 
         let _k = match v6 {
-            true => entry.insert((key, Completion::Accept(accept::init_accept_rec6()))),
-            false => entry.insert((key, Completion::Accept(accept::init_accept_rec4()))),
+            true => entry.insert((
+                key,
+                Completion::Accept(crate::slab::accept::init_accept_rec6()),
+            )),
+            false => entry.insert((
+                key,
+                Completion::Accept(crate::slab::accept::init_accept_rec4()),
+            )),
         };
         let a_rec_t = self.fd_slab.get(key);
         let dest_slot = None;
@@ -258,9 +307,9 @@ impl EpollUringHandler {
 
         match a_rec_t {
             Some((_k, Completion::Accept(a_rec_k))) => {
-                let accept_rec =
-                    accept::entry(fd, &a_rec_k, dest_slot, flags).user_data(key as u64);
-                let accept = unsafe { s_queue.push(&accept_rec) };
+                let accept_rec = crate::slab::accept::entry(fd, &a_rec_k, dest_slot, flags)
+                    .user_data(key as u64);
+                let _accept = unsafe { s_queue.push(&accept_rec) };
             }
             _ => {
                 return Err(EpollUringHandlerError::SlabBugSetGet(
@@ -282,14 +331,14 @@ impl EpollUringHandler {
         let key = entry.key();
         let _k = entry.insert((
             key,
-            Completion::EpollEvent(epoll_ctl::event_rec(handled_fd, key as u64)),
+            Completion::EpollEvent(crate::slab::epoll_ctl::event_rec(handled_fd, key as u64)),
         ));
         let e_rec_t = self.fd_slab.get(key);
 
         match e_rec_t {
-            Some((k, Completion::EpollEvent(e_rec_k))) => {
-                let add_rec = epoll_ctl::add(self.epfd, e_rec_k).user_data(key as u64);
-                let add = unsafe { s_queue.push(&add_rec) };
+            Some((_, Completion::EpollEvent(e_rec_k))) => {
+                let add_rec = crate::slab::epoll_ctl::add(self.epfd, e_rec_k).user_data(key as u64);
+                let _add = unsafe { s_queue.push(&add_rec) };
             }
             _ => {
                 return Err(EpollUringHandlerError::SlabBugSetGet(

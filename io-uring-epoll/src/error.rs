@@ -19,6 +19,8 @@ pub enum EpollUringHandlerError {
     Slab(String),
     /// Slab was able to store the value but not get it? This is a bug.
     SlabBugSetGet(&'static str),
+    /// Register handles error
+    RegisterHandles(String),
 }
 
 impl core::fmt::Display for EpollUringHandlerError {
@@ -38,6 +40,8 @@ impl core::fmt::Display for EpollUringHandlerError {
             Self::Duplicate => write!(f, "The filehandle is already maped in. Possible duplicate?"),
             Self::Submission(s) => write!(f, "Submission: {}", s),
             Self::Slab(s) => write!(f, "Slab: {}", s),
+            Self::SlabBugSetGet(s) => write!(f, "Slab Bug: {}", s),
+            Self::RegisterHandles(s) => write!(f, "Register Handles: {}", s),
         }
     }
 }

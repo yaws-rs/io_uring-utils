@@ -2,19 +2,25 @@
 
 use crate::RawFd;
 use core::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
+use io_uring::types::DestinationSlot;
 
+/// Completed Accept Record
 #[derive(Clone, Debug, PartialEq)]
 pub enum AcceptRec {
+    /// IPv4
     V4(Accept4),
+    /// IPv6
     V6(Accept6),
 }
 
+/// IPv4 Accept Record
 #[derive(Clone, Debug, PartialEq)]
 pub struct Accept4 {
     pub(crate) sockaddr: libc::sockaddr_in,
     pub(crate) socklen_t: libc::socklen_t,
 }
 
+/// IPv6 Accept Record
 #[derive(Clone, Debug, PartialEq)]
 pub struct Accept6 {
     pub(crate) sockaddr: libc::sockaddr_in6,
@@ -22,6 +28,7 @@ pub struct Accept6 {
 }
 
 impl AcceptRec {
+    /// Return Accept as SocketAddr
     pub fn sockaddr(&self) -> Option<SocketAddr> {
         println!("Self = {:?}", self);
 
@@ -72,7 +79,7 @@ impl AcceptRec {
 }
 
 #[inline]
-pub(super) fn init_accept_rec4() -> AcceptRec {
+pub(crate) fn init_accept_rec4() -> AcceptRec {
     AcceptRec::V4(Accept4 {
         sockaddr: unsafe { std::mem::zeroed() },
         socklen_t: size_of::<libc::sockaddr>() as u32,
@@ -80,32 +87,29 @@ pub(super) fn init_accept_rec4() -> AcceptRec {
 }
 
 #[inline]
-pub(super) fn init_accept_rec6() -> AcceptRec {
+pub(crate) fn init_accept_rec6() -> AcceptRec {
     AcceptRec::V6(Accept6 {
         sockaddr: unsafe { std::mem::zeroed() },
         socklen_t: size_of::<libc::sockaddr_in6>() as u32,
     })
 }
 
-use io_uring::types::DestinationSlot;
-use std::ptr::addr_of;
-
 #[inline]
-pub(super) fn entry(
+pub(crate) fn entry(
     fd: RawFd,
     rec_w: &AcceptRec,
     slot: Option<DestinationSlot>,
     flags: i32,
 ) -> io_uring::squeue::Entry {
-    let (mut addr_ptr, socklen_t_ptr) = match rec_w {
+    let (addr_ptr, socklen_t_ptr) = match rec_w {
         AcceptRec::V4(rec) => {
-            let mut addr_ptr = std::ptr::addr_of!(rec.sockaddr);
-            let mut socklen_t_ptr = std::ptr::addr_of!(rec.socklen_t);
+            let addr_ptr = std::ptr::addr_of!(rec.sockaddr);
+            let socklen_t_ptr = std::ptr::addr_of!(rec.socklen_t);
             (addr_ptr as *mut libc::sockaddr, socklen_t_ptr)
         }
         AcceptRec::V6(rec) => {
-            let mut addr_ptr = std::ptr::addr_of!(rec.sockaddr);
-            let mut socklen_t_ptr = std::ptr::addr_of!(rec.socklen_t);
+            let addr_ptr = std::ptr::addr_of!(rec.sockaddr);
+            let socklen_t_ptr = std::ptr::addr_of!(rec.socklen_t);
             (addr_ptr as *mut libc::sockaddr, socklen_t_ptr)
         }
     };

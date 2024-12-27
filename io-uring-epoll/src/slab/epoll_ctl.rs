@@ -3,14 +3,17 @@
 use crate::HandledFd;
 use crate::RawFd;
 
+/// EpollCtl Record
 #[derive(Clone, Debug, PartialEq)]
 pub struct EpollRec {
+    /// Related filehandle
     fd: RawFd,
+    /// Related Epoll Event
     ev: libc::epoll_event,
 }
 
 #[inline]
-pub(super) fn event_rec(handled_fd: &HandledFd, user_data: u64) -> EpollRec {
+pub(crate) fn event_rec(handled_fd: &HandledFd, user_data: u64) -> EpollRec {
     EpollRec {
         fd: handled_fd.fd,
         ev: libc::epoll_event {
@@ -21,7 +24,7 @@ pub(super) fn event_rec(handled_fd: &HandledFd, user_data: u64) -> EpollRec {
 }
 
 #[inline]
-pub(super) fn add(epfd: RawFd, event_rec: &EpollRec) -> io_uring::squeue::Entry {
+pub(crate) fn add(epfd: RawFd, event_rec: &EpollRec) -> io_uring::squeue::Entry {
     entry(epfd, libc::EPOLL_CTL_ADD, event_rec)
 }
 

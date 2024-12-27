@@ -31,6 +31,8 @@ pub use handled_fd::HandledFd;
 //-----------------------------------------------
 // Epoll Uring Handler -> EpollCtl within Uring
 //-----------------------------------------------
-pub mod epoll_uring;
+mod epoll_uring;
 #[doc(inline)]
-pub use epoll_uring::EpollUringHandler;
+pub use epoll_uring::{Completion, EpollUringHandler, SubmissionRecordStatus};
+
+pub(crate) use std::os::fd::RawFd;
