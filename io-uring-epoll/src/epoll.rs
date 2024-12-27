@@ -3,8 +3,6 @@
 use crate::error::EpollHandlerError;
 use crate::RawFd;
 
-use std::time::Duration;
-
 /// Epoll Handler via syscalls.
 #[derive(Debug)]
 pub struct EpollHandler {
@@ -40,7 +38,7 @@ impl EpollHandler {
                 t,
             )
         };
-        if r == -1 {
+        if r < 0 {
             // SAFETY: ffi no-data
             let errno = unsafe { libc::__errno_location() };
             return Err(EpollHandlerError::Wait(format!("errno: {:?}", errno)));
@@ -48,13 +46,12 @@ impl EpollHandler {
         if r == 0 {
             return Ok(0);
         }
-        let mut res = 0;
         for i in 1..r {
             let idx: usize = i as usize - 1;
             let events = evs[idx].events;
             let udata_u64 = evs[idx].u64;
             func(user, events, udata_u64);
         }
-        Ok(res)
+        Ok(r as u32)
     }
 }

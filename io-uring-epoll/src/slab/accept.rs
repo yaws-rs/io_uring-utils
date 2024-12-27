@@ -30,14 +30,12 @@ pub struct Accept6 {
 impl AcceptRec {
     /// Return Accept as SocketAddr
     pub fn sockaddr(&self) -> Option<SocketAddr> {
-        println!("Self = {:?}", self);
-
-        let socklen_t = match self {
+        let socklen_t: u32 = match self {
             AcceptRec::V4(r) => r.socklen_t,
             AcceptRec::V6(r) => r.socklen_t,
         };
 
-        if socklen_t <= 0 {
+        if socklen_t == 0 {
             return None;
         }
 

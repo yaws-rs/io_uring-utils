@@ -205,7 +205,7 @@ impl EpollUringHandler {
     /// original submission record
     pub fn completions<F, U>(&mut self, user: &mut U, func: F) -> Result<(), EpollUringHandlerError>
     where
-        F: Fn(&mut U, &io_uring::cqueue::Entry, &Completion) -> (),
+        F: Fn(&mut U, &io_uring::cqueue::Entry, &Completion),
     {
         // SAFETY: We Retain the original record and don't move it.
         unsafe {
@@ -234,8 +234,8 @@ impl EpollUringHandler {
         F: Fn(&mut U, &io_uring::cqueue::Entry, &Completion) -> SubmissionRecordStatus,
     {
         let iou = &mut self.io_uring;
-        let mut c_queue = iou.completion();
-        while let Some(item) = c_queue.next() {
+        let c_queue = iou.completion();
+        for item in c_queue {
             let key = item.user_data();
             let a_rec_t = self.fd_slab.get(key as usize);
 
@@ -307,8 +307,8 @@ impl EpollUringHandler {
 
         match a_rec_t {
             Some((_k, Completion::Accept(a_rec_k))) => {
-                let accept_rec = crate::slab::accept::entry(fd, &a_rec_k, dest_slot, flags)
-                    .user_data(key as u64);
+                let accept_rec =
+                    crate::slab::accept::entry(fd, a_rec_k, dest_slot, flags).user_data(key as u64);
                 let _accept = unsafe { s_queue.push(&accept_rec) };
             }
             _ => {
