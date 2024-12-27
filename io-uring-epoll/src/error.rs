@@ -1,5 +1,12 @@
 //! EpollHandler, EpollUringHandler, UringHandler Errors
 
+/// EpollHandler Errors
+#[derive(Debug)]
+pub enum EpollHandlerError {
+    /// epoll_wait Error
+    Wait(String),
+}
+
 /// Errors from the handler           
 #[derive(Debug)]
 pub enum EpollUringHandlerError {
@@ -23,8 +30,18 @@ pub enum EpollUringHandlerError {
     RegisterHandles(String),
 }
 
-impl core::fmt::Display for EpollUringHandlerError {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+use core::fmt::{Display, Formatter};
+
+impl Display for EpollHandlerError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+        match self {
+            Self::Wait(s) => write!(f, "EpollHandlerWait: {}", s),
+        }
+    }
+}
+
+impl Display for EpollUringHandlerError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
         match self {
             Self::IoUringCreate(s) => write!(f, "IoUring Create: {}", s),
             Self::EpollCreate1(s) => write!(f, "epoll_create1(): {}", s),

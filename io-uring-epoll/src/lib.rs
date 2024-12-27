@@ -35,4 +35,14 @@ mod epoll_uring;
 #[doc(inline)]
 pub use epoll_uring::{Completion, EpollUringHandler, SubmissionRecordStatus};
 
+//-----------------------------------------------
+// Epoll Handler -> Epoll Syscalls e.g. wait
+//-----------------------------------------------
+mod epoll;
+#[doc(inline)]
+pub use epoll::EpollHandler;
+
+//-----------------------------------------------
+// Misc crate-wide private types
+//-----------------------------------------------
 pub(crate) use std::os::fd::RawFd;
