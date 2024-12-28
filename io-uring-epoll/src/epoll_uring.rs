@@ -1,61 +1,17 @@
 //! Epoll Uring Handler
 
+use crate::completion::Completion;
 use crate::error::EpollUringHandlerError;
-use crate::HandledFd;
+use crate::fd::{FdKind, HandledFd, RegisteredFd};
+use crate::io_uring::IoUring;
+use crate::RawFd;
 
-use crate::slab::{AcceptRec, EpollRec};
+// TODO: Refactor - This should come from UringHandler
+use crate::error::UringHandlerError;
+
+use crate::UringHandler;
 
 use io_uring::opcode::EpollCtl;
-use io_uring::IoUring;
-
-use std::os::fd::RawFd;
-
-/// Type of Fd mainly used by the safe API
-#[derive(Debug)]
-#[allow(dead_code)] // TODO Safe API
-pub(crate) enum FdKind {
-    /// Epoll ctl handle
-    EpollCtl,
-    /// EPoll Event Handle
-    EpollEvent(HandledFd),
-    /// Acceptor handle
-    Acceptor,
-    /// Manual handle
-    Manual,
-}
-
-/// FDs registered with Kernel for io_uring
-#[derive(Debug)]
-pub(crate) struct RegisteredFd {
-    /// Type of registered handle
-    #[allow(dead_code)] // TODO Safe API
-    kind: FdKind,
-    /// RawFD of the registered handle
-    raw_fd: RawFd,
-}
-
-/// Completion types
-#[derive(Debug)]
-pub enum Completion {
-    /// EpollCtl Completion
-    EpollEvent(EpollRec),
-    /// Accept Completion
-    Accept(AcceptRec),
-}
-
-/// What to do with the submission record upon handling completion.
-/// Used within handle_completions Fn Return
-#[derive(Clone, Debug, PartialEq)]
-pub enum SubmissionRecordStatus {
-    /// Retain the original submsision record when it is needed to be retained.
-    /// For example EpollCtl original Userdata must be retained in multishot mode.
-    /// Downside is that care must be taken to clean up the associated sunmission record.
-    Retain,
-    /// Forget the associated submission record
-    /// For example Accept original record can be deleted upon compleiton after read.
-    /// Typically a new Accept submission is pushed without re-using any existing.    
-    Forget,
-}
 
 /// Manage the io_uring Submission and Completion Queues
 /// related to EpollCtrl opcode in io_uring.
@@ -64,40 +20,23 @@ pub enum SubmissionRecordStatus {
 pub struct EpollUringHandler {
     /// EpollCtl FD
     pub(crate) epfd: RawFd,
-    /// io_uring Managed instance
-    pub(crate) io_uring: IoUring<io_uring::squeue::Entry, io_uring::cqueue::Entry>,
-    /// Completion events awaited
-    pub(crate) fd_slab: slab::Slab<(usize, Completion)>,
-    /// Registred Fds with io_uring
-    pub(crate) fd_register: slab::Slab<(usize, RegisteredFd)>,
-}
-
-impl core::fmt::Debug for EpollUringHandler {
-    fn fmt(&self, _: &mut core::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        Ok(())
-    }
-}
-
-impl PartialEq for EpollUringHandler {
-    fn eq(&self, _: &EpollUringHandler) -> bool {
-        todo!()
-    }
+    pub(crate) uring: UringHandler,
 }
 
 impl EpollUringHandler {
-    /// Create a new handler with new io-uring::IoUring
-    ///
-    /// capacity must be power of two as per io-uring documentation
+    /// Create a new EpollUringHandler.
     /// ```rust
     /// use io_uring_epoll::EpollUringHandler;
     ///
-    /// EpollUringHandler::new(10).expect("Unable to create EPoll Handler");
+    /// EpollUringHandler::new(16).expect("Unable to create EpullUringHandler");
     /// ```    
     pub fn new(capacity: u32) -> Result<Self, EpollUringHandlerError> {
-        let iou: IoUring<io_uring::squeue::Entry, io_uring::cqueue::Entry> = IoUring::builder()
-            .build(capacity)
-            .map_err(|e| EpollUringHandlerError::IoUringCreate(e.to_string()))?;
-
+        let iou: IoUring<io_uring::squeue::Entry, io_uring::cqueue::Entry> =
+            IoUring::builder().build(capacity).map_err(|e| {
+                EpollUringHandlerError::UringHandler(UringHandlerError::IoUringCreate(
+                    e.to_string(),
+                ))
+            })?;
         Self::from_io_uring(iou)
     }
     /// Create a new handler from an existing io-uring::IoUring builder
@@ -111,7 +50,7 @@ impl EpollUringHandler {
     ///
     /// let mut iou: IoUring<io_uring::squeue::Entry, io_uring::cqueue::Entry>
     ///     = IoUring::builder()
-    ///         .build(100)
+    ///         .build(16)
     ///         .expect("Unable to build IoUring");
     ///
     /// EpollUringHandler::from_io_uring(iou).expect("Unable to create from io_uring Builder");
@@ -149,191 +88,49 @@ impl EpollUringHandler {
             },
         ));
 
-        Ok(Self {
-            epfd,
-            io_uring: iou,
-            fd_slab: slab::Slab::new(),
-            fd_register,
-        })
+        let uring =
+            UringHandler::from_io_uring(iou).map_err(EpollUringHandlerError::UringHandler)?;
+
+        Ok(Self { epfd, uring })
     }
-    /// epfd
+    /// The underlying epfd
     pub fn epfd(&self) -> RawFd {
         self.epfd
     }
-    /// Register Acceptor handle used later with commit_registered_handles
-    ///
-    /// # Fd Validity
-    ///
-    /// User is responsibe of ensuring fd is valid
-    pub fn register_acceptor(&mut self, fd: RawFd) -> Result<usize, EpollUringHandlerError> {
-        let entry = self.fd_register.vacant_entry();
-        let key = entry.key();
-        self.fd_register.insert((
-            key,
-            RegisteredFd {
-                kind: FdKind::Acceptor,
-                raw_fd: fd,
-            },
-        ));
-        Ok(key)
-    }
-    /// Push register for handles
-    /// Note kernel may mangle this table but generally adding entries
-    /// Make sure the queues are empty before calling this
-    pub fn commit_registered_handles(&mut self) -> Result<(), EpollUringHandlerError> {
-        let iou = &mut self.io_uring;
-        let submitter = iou.submitter();
-
-        let mut vec_i32: Vec<RawFd> = Vec::with_capacity(self.fd_register.capacity());
-        for idx in 0..self.fd_register.capacity() {
-            if let Some((_, itm)) = self.fd_register.get(idx) {
-                vec_i32.push(itm.raw_fd);
-            } else {
-                vec_i32.push(-1);
-            }
-        }
-
-        let slice_i32: &[i32] = &vec_i32[0..];
-
-        submitter
-            .register_files(slice_i32)
-            .map_err(|e| EpollUringHandlerError::RegisterHandles(e.to_string()))?;
-
-        Ok(())
-    }
-    /// Spin the completions ring with custom handling without touching the
-    /// original submission record
-    pub fn completions<F, U>(&mut self, user: &mut U, func: F) -> Result<(), EpollUringHandlerError>
-    where
-        F: Fn(&mut U, &io_uring::cqueue::Entry, &Completion),
-    {
-        // SAFETY: We Retain the original record and don't move it.
-        unsafe {
-            self.handle_completions(user, |u, e, rec| {
-                func(u, e, rec);
-                SubmissionRecordStatus::Retain
-            })
-        }
-    }
-    /// Spin the completions ring with custom handling on the original submission record.
-    /// See [`completions`] for the safe variant that requires retaining
-    /// the original submission record.
-    ///
-    /// # Safety
-    ///
-    /// Record must be retained if it is to be used after handling it
-    /// e.g. EpollEvent record must be retained if it will trigger again given
-    /// kernel still refers to it upon it triggering where as upon deleting handle
-    /// from EpollCtl it can be only deleted after it has been confirmed as deleted.
-    pub unsafe fn handle_completions<F, U>(
-        &mut self,
-        user: &mut U,
-        func: F,
-    ) -> Result<(), EpollUringHandlerError>
-    where
-        F: Fn(&mut U, &io_uring::cqueue::Entry, &Completion) -> SubmissionRecordStatus,
-    {
-        let iou = &mut self.io_uring;
-        let c_queue = iou.completion();
-        for item in c_queue {
-            let key = item.user_data();
-            let a_rec_t = self.fd_slab.get(key as usize);
-
-            if let Some((_k, ref completed_rec)) = a_rec_t {
-                let rec_status = func(user, &item, completed_rec);
-                if rec_status == SubmissionRecordStatus::Forget {
-                    self.fd_slab.remove(key as usize);
-                }
-            }
-        }
-        Ok(())
+    /// The underlying UringHandler instance
+    pub fn uring_handler(&mut self) -> &mut UringHandler {
+        &mut self.uring
     }
     /// Borrow the underlying io-uring::IoUring instance
     pub fn io_uring(&mut self) -> &mut IoUring<io_uring::squeue::Entry, io_uring::cqueue::Entry> {
-        &mut self.io_uring
+        self.uring.io_uring()
     }
     /// This calls the underlying io_uring::IoUring::submit submitting all the staged commits
     pub fn submit(&self) -> Result<usize, EpollUringHandlerError> {
-        self.io_uring
-            .submit()
-            .map_err(|e| EpollUringHandlerError::Submission(e.to_string()))
+        self.uring.submit().map_err(|e| {
+            EpollUringHandlerError::UringHandler(UringHandlerError::Submission(e.to_string()))
+        })
     }
     /// Same as submit but using io_uring::IoUring::submit_and_wait
     pub fn submit_and_wait(&self, want: usize) -> Result<usize, EpollUringHandlerError> {
-        self.io_uring
-            .submit_and_wait(want)
-            .map_err(|e| EpollUringHandlerError::Submission(e.to_string()))
-    }
-    /// Add Accept for a IPv4 TCP Listener
-    ///
-    /// # Safety
-    ///
-    /// Use of a `fd` that is not a valid IPv4 TCP Listener is undefined behaviour.
-    pub unsafe fn add_accept_ipv4(&mut self, fd: RawFd) -> Result<(), EpollUringHandlerError> {
-        self.add_accept(fd, false)
-    }
-    /// Add Accept for a IPv6 TCP Listener
-    ///
-    /// # Safety
-    ///
-    /// Use of a `fd` that is not a valid IPv6 TCP Listener is undefined behaviour.
-    pub unsafe fn add_accept_ipv6(&mut self, fd: RawFd) -> Result<(), EpollUringHandlerError> {
-        self.add_accept(fd, true)
-    }
-    pub(crate) unsafe fn add_accept(
-        &mut self,
-        fd: RawFd,
-        v6: bool,
-    ) -> Result<(), EpollUringHandlerError> {
-        let iou = &mut self.io_uring;
-        let mut s_queue = iou.submission();
-
-        let entry = self.fd_slab.vacant_entry();
-        let key = entry.key();
-
-        let _k = match v6 {
-            true => entry.insert((
-                key,
-                Completion::Accept(crate::slab::accept::init_accept_rec6()),
-            )),
-            false => entry.insert((
-                key,
-                Completion::Accept(crate::slab::accept::init_accept_rec4()),
-            )),
-        };
-        let a_rec_t = self.fd_slab.get(key);
-        let dest_slot = None;
-        let flags = libc::EFD_NONBLOCK & libc::EFD_CLOEXEC;
-
-        match a_rec_t {
-            Some((_k, Completion::Accept(a_rec_k))) => {
-                let accept_rec =
-                    crate::slab::accept::entry(fd, a_rec_k, dest_slot, flags).user_data(key as u64);
-                let _accept = unsafe { s_queue.push(&accept_rec) };
-            }
-            _ => {
-                return Err(EpollUringHandlerError::SlabBugSetGet(
-                    "Accept not found after set?",
-                ));
-            }
-        }
-
-        Ok(())
+        self.uring.submit_and_wait(want).map_err(|e| {
+            EpollUringHandlerError::UringHandler(UringHandlerError::Submission(e.to_string()))
+        })
     }
     /// Stage commit of all changed [`HandledFd`] resources to submission queue
     /// This will make all changes within the underlying io_uring::squeue::SubmissionQueue
     /// Use the [`Self::submit`] or [`Self::submit_and_wait`] to push the commits to kernel
     pub fn commit_fd(&mut self, handled_fd: &HandledFd) -> Result<(), EpollUringHandlerError> {
-        let iou = &mut self.io_uring;
+        let iou = &mut self.uring.io_uring;
         let mut s_queue = iou.submission();
 
-        let entry = self.fd_slab.vacant_entry();
+        let entry = self.uring.fd_slab.vacant_entry();
         let key = entry.key();
         let _k = entry.insert((
             key,
             Completion::EpollEvent(crate::slab::epoll_ctl::event_rec(handled_fd, key as u64)),
         ));
-        let e_rec_t = self.fd_slab.get(key);
+        let e_rec_t = self.uring.fd_slab.get(key);
 
         match e_rec_t {
             Some((_, Completion::EpollEvent(e_rec_k))) => {

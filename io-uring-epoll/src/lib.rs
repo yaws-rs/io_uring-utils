@@ -23,17 +23,31 @@ pub mod error;
 pub mod slab;
 
 //-----------------------------------------------
-// Handled FD
+// Filehandle types
 //-----------------------------------------------
-mod handled_fd;
-pub use handled_fd::HandledFd;
+pub(crate) mod fd;
+pub use fd::HandledFd;
+
+//-----------------------------------------------
+// Completion types
+//-----------------------------------------------
+pub mod completion;
+pub use completion::Completion;
 
 //-----------------------------------------------
 // Epoll Uring Handler -> EpollCtl within Uring
 //-----------------------------------------------
 mod epoll_uring;
 #[doc(inline)]
-pub use epoll_uring::{Completion, EpollUringHandler, SubmissionRecordStatus};
+pub use epoll_uring::EpollUringHandler;
+//pub use epoll_uring::{Completion, EpollUringHandler, SubmissionRecordStatus};
+
+//-----------------------------------------------
+// Uring Handler -> Core Uring handler
+//-----------------------------------------------
+mod uring;
+#[doc(inline)]
+pub use uring::UringHandler;
 
 //-----------------------------------------------
 // Epoll Handler -> Epoll Syscalls e.g. wait

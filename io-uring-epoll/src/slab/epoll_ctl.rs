@@ -1,6 +1,6 @@
 //! EpollCtl Builder
 
-use crate::HandledFd;
+use crate::fd::HandledFd;
 use crate::RawFd;
 
 /// EpollCtl Record

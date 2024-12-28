@@ -66,10 +66,13 @@ fn main() {
 
     let mut user = UserData { e: 0 };
 
+    // The underlying UringHandler is accessible
+    let uring_handler = handler.uring_handler();
+
     // This is unsafe because forgetting the original submission record
     // can lead to UB where the kernel still refers to it's address later.
     /*
-    unsafe { handler.handle_completions(&mut user, |user, entry, rec| {
+    unsafe { uring_handler.handle_completions(&mut user, |user, entry, rec| {
         match rec {
             Completion::EpollEvent(e) => {
                 user.e += 1;
@@ -83,7 +86,7 @@ fn main() {
     */
 
     // This is safe since we are not touching the original submission record.
-    handler
+    uring_handler
         .completions(&mut user, |user, entry, rec| match rec {
             Completion::EpollEvent(e) => {
                 user.e += 1;
