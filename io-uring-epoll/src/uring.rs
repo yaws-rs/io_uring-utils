@@ -20,20 +20,6 @@ pub struct UringHandler {
     pub(crate) fd_register: slab::Slab<(usize, RegisteredFd)>,
 }
 
-/*
-impl core::fmt::Debug for UringHandler {
-    fn fmt(&self, _: &mut core::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        Ok(())
-    }
-}
-
-impl PartialEq for UringHandler {
-    fn eq(&self, _: &UringHandler) -> bool {
-        todo!()
-    }
-}
-*/
-
 impl UringHandler {
     /// Create a new handler with new io-uring::IoUring
     ///

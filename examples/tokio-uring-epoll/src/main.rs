@@ -1,15 +1,16 @@
+//! This example is TOOD
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::mpsc;
 use std::thread;
 
-use io_uring_epoll::EpollHandler;
+use io_uring_epoll::EpollUringHandler;
 use tokio_uring::net::{TcpListener, TcpStream};
 
 use std::os::fd::AsRawFd;
 use std::os::fd::RawFd;
 
 fn epoll_thread(tx: mpsc::Sender<RawFd>, rx: mpsc::Receiver<RawFd>) {
-    let mut handler = EpollHandler::new(4).expect("Could not create handler");
+    let mut handler = EpollUringHandler::new(16).expect("Could not create handler");
 }
 
 fn main() {
