@@ -46,8 +46,8 @@ impl EpollHandler {
         if r == 0 {
             return Ok(0);
         }
-        for i in 1..r {
-            let idx: usize = i as usize - 1;
+        for i in 0..r {
+            let idx = i as usize;
             let events = evs[idx].events;
             let udata_u64 = evs[idx].u64;
             func(user, events, udata_u64);
