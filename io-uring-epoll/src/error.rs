@@ -1,5 +1,10 @@
 //! EpollHandler, EpollUringHandler, UringHandler Errors
 
+use core::fmt;
+use core::fmt::Display;
+
+use std::error::Error;
+
 /// EpollHandler Errors
 #[derive(Debug)]
 pub enum EpollHandlerError {
@@ -39,10 +44,8 @@ pub enum UringHandlerError {
     RegisterHandles(String),
 }
 
-use core::fmt::{Display, Formatter};
-
 impl Display for EpollHandlerError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Wait(s) => write!(f, "EpollHandlerWait: {}", s),
         }
@@ -50,7 +53,7 @@ impl Display for EpollHandlerError {
 }
 
 impl Display for EpollUringHandlerError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::SlabBugSetGet(s) => write!(f, "Slab Bug: {}", s),
             Self::NotSupported => write!(
@@ -69,7 +72,7 @@ impl Display for EpollUringHandlerError {
 }
 
 impl Display for UringHandlerError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::IoUringCreate(s) => write!(f, "IoUring Create: {}", s),
             Self::Duplicate => write!(f, "The filehandle is already maped in. Possible duplicate?"),
@@ -80,3 +83,7 @@ impl Display for UringHandlerError {
         }
     }
 }
+
+impl Error for EpollUringHandlerError {}
+impl Error for UringHandlerError {}
+impl Error for EpollHandlerError {}
