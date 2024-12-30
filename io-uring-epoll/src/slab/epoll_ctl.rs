@@ -1,4 +1,4 @@
-//! EpollCtl Builder
+//! EpollCtl Record
 
 use crate::fd::HandledFd;
 use crate::RawFd;
@@ -10,6 +10,17 @@ pub struct EpollRec {
     fd: RawFd,
     /// Related Epoll Event
     ev: libc::epoll_event,
+}
+
+impl EpollRec {
+    /// Underlying RawFd
+    pub fn fd(&self) -> RawFd {
+        self.fd
+    }
+    /// Underlying libc::eooll_event
+    pub fn ev(&self) -> libc::epoll_event {
+        self.ev
+    }
 }
 
 #[inline]
