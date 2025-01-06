@@ -32,40 +32,7 @@ cargo add io-uring-epoll
 
 ## Example
 
-```rust
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-use std::os::fd::AsRawFd;
-use io_uring_epoll::{HandledFd, EpollHandler};
-
-// The 10 denotes power of two capacity to io_uring::IoUring
-let mut handler = EpollHandler::new(10).expect("Unable to create EPoll Handler");
-
-// This works with any impl that provides std::os::fd::AsRawFd impl
-// In POSIX/UNIX-like it's just i32 file number or "fileno"
-let listen = std::net::TcpListener::bind(SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0)).unwrap();
-
-// Add the listen handle into EpollHandler
-let mut handle_fd = HandledFd::new(listen.as_raw_fd());
-let set_mask = handle_fd.set_in(true);
-handler.add_fd(&handle_fd);
-
-// Prepare a commit all changes into io_uring::SubmissionQueue
-let handle_status = handler.prepare_submit().unwrap();
-
-// async version is with submit()
-handler.submit_and_wait(1).unwrap();
-
-// Get the underlying io_uring::cqeueu::CompletionQueue
-let mut c_queue = handler.io_uring().completion();
-
-// Note: This may not have finished so may need to wait for it
-if c_queue.is_empty() == false {
-    let cqes: Vec<io_uring::cqueue::Entry> = c_queue.take_while(|i| {
-        dbg!(i);
-        false
-    }).collect();
-}
-```
+See [Examples](./examples) directory for the different use-cases.
 
 ## License
 

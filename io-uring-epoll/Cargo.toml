@@ -1,6 +1,6 @@
 [package]
 name = "io-uring-epoll"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "When your io_uring meets your epoll"
 homepage = "https://github.com/yaws-rs/io_uring-utils/tree/main/io-uring-epoll"
@@ -11,8 +11,9 @@ repository = "https://github.com/yaws-rs/io_uring-utils/tree/main/io-uring-epoll
 categories = ["science"]
 
 [dependencies]
-io-uring = { version = "0.6" }
-libc = { version = "0.2" }
+io-uring = { version = "0.7" }
+libc = { version = "0.2", features = ["extra_traits"] }
+slab = { version = "0.4" }
 
 [features]
 default = []
