@@ -20,6 +20,7 @@ pub struct UringHandler {
     pub(crate) fd_slab: slab::Slab<(usize, Completion)>,
     /// Registred Fds with io_uring
     pub(crate) fd_register: slab::Slab<(usize, RegisteredFd)>,
+    //    pub(crate) buf_register: slab::Slab<(usize, RegisteredBuf)>,
 }
 
 impl UringHandler {
@@ -61,6 +62,7 @@ impl UringHandler {
             io_uring: iou,
             fd_slab: slab::Slab::new(),
             fd_register: slab::Slab::new(),
+            //            buf_register: slab::Slab::new(),
         })
     }
     /// Push register for handles
