@@ -4,7 +4,7 @@ use super::FdKind;
 use crate::RawFd;
 
 /// Filehandle registered (or mapped as fixed) with the io_uring API
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(crate) struct RegisteredFd {
     /// Type of registered handle          
     #[allow(dead_code)] // TODO Safe API

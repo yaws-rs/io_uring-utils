@@ -1,6 +1,7 @@
 //! Accept API Surface
 
 use super::UringHandler;
+use slabbable::Slabbable;
 
 use super::UringHandlerError; // TODO: COnsider AcceptError?
 use crate::fd::{FdKind, RegisteredFd};
@@ -49,25 +50,24 @@ impl UringHandler {
         let iou = &mut self.io_uring;
         let mut s_queue = iou.submission();
 
-        let entry = self.fd_slab.vacant_entry();
-        let key = entry.key();
-
-        let _k = match v6 {
-            true => entry.insert((
-                key,
-                Completion::Accept(crate::slab::accept::init_accept_rec6()),
-            )),
-            false => entry.insert((
-                key,
-                Completion::Accept(crate::slab::accept::init_accept_rec4()),
-            )),
-        };
-        let a_rec_t = self.fd_slab.get(key);
+        let key = match v6 {
+            true => self
+                .fd_slab
+                .take_next_with(Completion::Accept(crate::slab::accept::init_accept_rec6())),
+            false => self
+                .fd_slab
+                .take_next_with(Completion::Accept(crate::slab::accept::init_accept_rec4())),
+        }
+        .map_err(|e| UringHandlerError::Slabbable(e))?;
+        let a_rec_t = self
+            .fd_slab
+            .slot_get_ref(key)
+            .map_err(|e| UringHandlerError::Slabbable(e))?;
         let dest_slot = None;
         let flags = libc::EFD_NONBLOCK & libc::EFD_CLOEXEC;
 
         match a_rec_t {
-            Some((_k, Completion::Accept(a_rec_k))) => {
+            Some(Completion::Accept(a_rec_k)) => {
                 let accept_rec =
                     crate::slab::accept::entry(fd, a_rec_k, dest_slot, flags).user_data(key as u64);
                 let _accept = unsafe { s_queue.push(&accept_rec) };

@@ -3,7 +3,7 @@
 use super::HandledFd;
 
 /// Type of Fd mainly used by the safe API
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 #[allow(dead_code)] // TODO Safe API
 pub(crate) enum FdKind {
     /// Epoll ctl handle                  

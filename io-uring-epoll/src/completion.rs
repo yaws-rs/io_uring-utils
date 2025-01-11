@@ -4,7 +4,7 @@ use crate::slab::AcceptRec;
 use crate::slab::EpollRec;
 
 /// Completion types                      
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Completion {
     /// EpollCtl Completion               
     EpollEvent(EpollRec),

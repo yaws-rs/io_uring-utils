@@ -5,6 +5,8 @@ use core::fmt::Display;
 
 use std::error::Error;
 
+use slabbable::SlabbableError;
+
 /// EpollHandler Errors
 #[derive(Debug)]
 pub enum EpollHandlerError {
@@ -42,6 +44,8 @@ pub enum UringHandlerError {
     SlabBugSetGet(&'static str),
     /// Register handles error
     RegisterHandles(String),
+    /// Slabbable related error
+    Slabbable(SlabbableError),
 }
 
 impl Display for EpollHandlerError {
@@ -80,6 +84,7 @@ impl Display for UringHandlerError {
             Self::Slab(s) => write!(f, "Slab: {}", s),
             Self::SlabBugSetGet(s) => write!(f, "Slab Bug: {}", s),
             Self::RegisterHandles(s) => write!(f, "Register Handles: {}", s),
+            Self::Slabbable(e) => write!(f, "Slabbable: {}", e),
         }
     }
 }

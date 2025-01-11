@@ -12,14 +12,19 @@ use crate::completion::SubmissionRecordStatus;
 use crate::fd::RegisteredFd;
 use crate::Completion;
 
+use slab::Slab;
+use slabbable::{Slabbable, SlabbableError};
+use slabbable_impl_selector::SelectedSlab;
+
 /// Manage the io_uring Submission and Completion Queues
 pub struct UringHandler {
     /// io_uring Managed instance
     pub(crate) io_uring: IoUring<io_uring::squeue::Entry, io_uring::cqueue::Entry>,
     /// Completion events awaited
-    pub(crate) fd_slab: slab::Slab<(usize, Completion)>,
+    //    pub(crate) fd_slab: slab::Slab<(usize, Completion)>,
+    pub(crate) fd_slab: SelectedSlab<Completion>,
     /// Registred Fds with io_uring
-    pub(crate) fd_register: slab::Slab<(usize, RegisteredFd)>,
+    pub(crate) fd_register: Slab<(usize, RegisteredFd)>,
     //    pub(crate) buf_register: slab::Slab<(usize, RegisteredBuf)>,
 }
 
@@ -30,14 +35,18 @@ impl UringHandler {
     /// ```rust
     /// use io_uring_epoll::UringHandler;
     ///
-    /// UringHandler::new(10).expect("Unable to create EPoll Handler");
+    /// UringHandler::new(16, 16, 16).expect("Unable to create EPoll Handler");
     /// ```    
-    pub fn new(capacity: u32) -> Result<Self, UringHandlerError> {
+    pub fn new(
+        q_capacity: u32,
+        fd_capacity: usize,
+        req_capacity: usize,
+    ) -> Result<Self, UringHandlerError> {
         let iou: IoUring<io_uring::squeue::Entry, io_uring::cqueue::Entry> = IoUring::builder()
-            .build(capacity)
+            .build(q_capacity)
             .map_err(|e| UringHandlerError::IoUringCreate(e.to_string()))?;
 
-        Self::from_io_uring(iou)
+        Self::from_io_uring(iou, fd_capacity, req_capacity)
     }
     /// Create a new handler from an existing io-uring::IoUring builder
     /// To construct a custom IoUring see io-uring Builder:
@@ -53,16 +62,18 @@ impl UringHandler {
     ///         .build(100)
     ///         .expect("Unable to build IoUring");
     ///
-    /// UringHandler::from_io_uring(iou).expect("Unable to create from io_uring Builder");
+    /// UringHandler::from_io_uring(iou, 16, 16).expect("Unable to create from io_uring Builder");
     /// ```    
     pub fn from_io_uring(
         iou: IoUring<io_uring::squeue::Entry, io_uring::cqueue::Entry>,
+        fd_capacity: usize,
+        req_capacity: usize,
     ) -> Result<Self, UringHandlerError> {
         Ok(Self {
             io_uring: iou,
-            fd_slab: slab::Slab::new(),
-            fd_register: slab::Slab::new(),
-            //            buf_register: slab::Slab::new(),
+            fd_slab: SelectedSlab::<Completion>::with_fixed_capacity(req_capacity)
+                .map_err(UringHandlerError::Slabbable)?,
+            fd_register: Slab::with_capacity(fd_capacity),
         })
     }
     /// Push register for handles
@@ -125,12 +136,17 @@ impl UringHandler {
         let c_queue = iou.completion();
         for item in c_queue {
             let key = item.user_data();
-            let a_rec_t = self.fd_slab.get(key as usize);
+            let a_rec_t = self
+                .fd_slab
+                .slot_get_ref(key as usize)
+                .map_err(|e| UringHandlerError::Slabbable(e))?;
 
-            if let Some((_k, ref completed_rec)) = a_rec_t {
+            if let Some(ref completed_rec) = a_rec_t {
                 let rec_status = func(user, &item, completed_rec);
                 if rec_status == SubmissionRecordStatus::Forget {
-                    self.fd_slab.remove(key as usize);
+                    self.fd_slab
+                        .mark_for_reuse(key as usize)
+                        .map_err(|e| UringHandlerError::Slabbable(e))?;
                 }
             }
         }

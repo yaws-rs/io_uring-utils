@@ -10,6 +10,7 @@ use crate::RawFd;
 use crate::error::UringHandlerError;
 
 use crate::UringHandler;
+use slabbable::Slabbable;
 
 use io_uring::opcode::EpollCtl;
 
@@ -28,16 +29,20 @@ impl EpollUringHandler {
     /// ```rust
     /// use io_uring_epoll::EpollUringHandler;
     ///
-    /// EpollUringHandler::new(16).expect("Unable to create EpullUringHandler");
+    /// EpollUringHandler::new(16, 16, 16).expect("Unable to create EpullUringHandler");
     /// ```    
-    pub fn new(capacity: u32) -> Result<Self, EpollUringHandlerError> {
+    pub fn new(
+        capacity: u32,
+        fd_capacity: usize,
+        req_capacity: usize,
+    ) -> Result<Self, EpollUringHandlerError> {
         let iou: IoUring<io_uring::squeue::Entry, io_uring::cqueue::Entry> =
             IoUring::builder().build(capacity).map_err(|e| {
                 EpollUringHandlerError::UringHandler(UringHandlerError::IoUringCreate(
                     e.to_string(),
                 ))
             })?;
-        Self::from_io_uring(iou)
+        Self::from_io_uring(iou, fd_capacity, req_capacity)
     }
     /// Create a new handler from an existing io-uring::IoUring builder
     /// To construct a custom IoUring see io-uring Builder:
@@ -53,10 +58,12 @@ impl EpollUringHandler {
     ///         .build(16)
     ///         .expect("Unable to build IoUring");
     ///
-    /// EpollUringHandler::from_io_uring(iou).expect("Unable to create from io_uring Builder");
+    /// EpollUringHandler::from_io_uring(iou, 16, 16).expect("Unable to create from io_uring Builder");
     /// ```    
     pub fn from_io_uring(
         iou: IoUring<io_uring::squeue::Entry, io_uring::cqueue::Entry>,
+        fd_capacity: usize,
+        req_capacity: usize,
     ) -> Result<Self, EpollUringHandlerError> {
         let mut epoll_probe = io_uring::Probe::new();
         iou.submitter()
@@ -88,8 +95,8 @@ impl EpollUringHandler {
             },
         ));
 
-        let uring =
-            UringHandler::from_io_uring(iou).map_err(EpollUringHandlerError::UringHandler)?;
+        let uring = UringHandler::from_io_uring(iou, fd_capacity, req_capacity)
+            .map_err(EpollUringHandlerError::UringHandler)?;
 
         Ok(Self { epfd, uring })
     }
@@ -124,16 +131,27 @@ impl EpollUringHandler {
         let iou = &mut self.uring.io_uring;
         let mut s_queue = iou.submission();
 
-        let entry = self.uring.fd_slab.vacant_entry();
-        let key = entry.key();
-        let _k = entry.insert((
-            key,
-            Completion::EpollEvent(crate::slab::epoll_ctl::event_rec(handled_fd, key as u64)),
-        ));
-        let e_rec_t = self.uring.fd_slab.get(key);
+        let reserved =
+            self.uring.fd_slab.reserve_next().map_err(|e| {
+                EpollUringHandlerError::UringHandler(UringHandlerError::Slabbable(e))
+            })?;
+        let udata = reserved.id();
+
+        let key = self
+            .uring
+            .fd_slab
+            .take_reserved_with(
+                reserved,
+                Completion::EpollEvent(crate::slab::epoll_ctl::event_rec(handled_fd, udata as u64)),
+            )
+            .map_err(|e| EpollUringHandlerError::UringHandler(UringHandlerError::Slabbable(e)))?;
+        let e_rec_t =
+            self.uring.fd_slab.slot_get_ref(key).map_err(|e| {
+                EpollUringHandlerError::UringHandler(UringHandlerError::Slabbable(e))
+            })?;
 
         match e_rec_t {
-            Some((_, Completion::EpollEvent(e_rec_k))) => {
+            Some(Completion::EpollEvent(e_rec_k)) => {
                 let add_rec = crate::slab::epoll_ctl::add(self.epfd, e_rec_k).user_data(key as u64);
                 let _add = unsafe { s_queue.push(&add_rec) };
             }

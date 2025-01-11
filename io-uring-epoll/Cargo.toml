@@ -14,6 +14,9 @@ categories = ["science"]
 io-uring = { version = "0.7" }
 libc = { version = "0.2", features = ["extra_traits"] }
 slab = { version = "0.4" }
+slabbable = { version = "0.1", path = "../../edifice/slabbable" }
+#slabbable-slab = { version = "0.1", path = "../edifice/slabbable-impls/slabbable-slab" }
+slabbable-impl-selector = { version = "0.1", path = "../../edifice/slabbable-impl-selector" }
 
 [features]
 default = []
