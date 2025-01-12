@@ -29,12 +29,13 @@ impl EpollUringHandler {
     /// ```rust
     /// use io_uring_epoll::EpollUringHandler;
     ///
-    /// EpollUringHandler::new(16, 16, 16).expect("Unable to create EpullUringHandler");
+    /// EpollUringHandler::new(16, 16, 16, 16).expect("Unable to create EpullUringHandler");
     /// ```    
     pub fn new(
         capacity: u32,
         fd_capacity: usize,
         req_capacity: usize,
+        buf_capacity: usize,
     ) -> Result<Self, EpollUringHandlerError> {
         let iou: IoUring<io_uring::squeue::Entry, io_uring::cqueue::Entry> =
             IoUring::builder().build(capacity).map_err(|e| {
@@ -42,7 +43,7 @@ impl EpollUringHandler {
                     e.to_string(),
                 ))
             })?;
-        Self::from_io_uring(iou, fd_capacity, req_capacity)
+        Self::from_io_uring(iou, fd_capacity, req_capacity, buf_capacity)
     }
     /// Create a new handler from an existing io-uring::IoUring builder
     /// To construct a custom IoUring see io-uring Builder:
@@ -58,12 +59,13 @@ impl EpollUringHandler {
     ///         .build(16)
     ///         .expect("Unable to build IoUring");
     ///
-    /// EpollUringHandler::from_io_uring(iou, 16, 16).expect("Unable to create from io_uring Builder");
+    /// EpollUringHandler::from_io_uring(iou, 16, 16, 16).expect("Unable to create from io_uring Builder");
     /// ```    
     pub fn from_io_uring(
         iou: IoUring<io_uring::squeue::Entry, io_uring::cqueue::Entry>,
         fd_capacity: usize,
         req_capacity: usize,
+        buf_capacity: usize,
     ) -> Result<Self, EpollUringHandlerError> {
         let mut epoll_probe = io_uring::Probe::new();
         iou.submitter()
@@ -95,7 +97,7 @@ impl EpollUringHandler {
             },
         ));
 
-        let uring = UringHandler::from_io_uring(iou, fd_capacity, req_capacity)
+        let uring = UringHandler::from_io_uring(iou, fd_capacity, req_capacity, buf_capacity)
             .map_err(EpollUringHandlerError::UringHandler)?;
 
         Ok(Self { epfd, uring })

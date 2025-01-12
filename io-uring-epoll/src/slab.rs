@@ -18,4 +18,4 @@ pub use epoll_ctl::EpollRec;
 // on Read/Recv etc. calls
 pub(crate) mod buffer;
 #[doc(inline)]
-pub use buffer::ProvideBufferRec;
+pub use buffer::{BuffersRec, ProvideBuffersRec};

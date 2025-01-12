@@ -36,6 +36,8 @@ pub enum UringHandlerError {
     IoUringCreate(String),
     /// The Fd is already in the handler and would override existing
     Duplicate,
+    /// Submission Push error, typically queue full.
+    SubmissionPush,
     /// Something went yoinks in io_uring::IoRing::submit[_and_wait]
     Submission(String),
     /// Something wrong Slab                                        
@@ -46,6 +48,13 @@ pub enum UringHandlerError {
     RegisterHandles(String),
     /// Slabbable related error
     Slabbable(SlabbableError),
+    /// Supplied value for input key was invalid.
+    /// First is the place it happened, Second is the expressed evalaution and Third is the invalid value.
+    InvalidParameterI32(&'static str, &'static str, i32),
+    /// Cannot directly destroy buffers that are currently owned by the kernel. Use remove_buffers instead.
+    BufferNoOwnership(usize),
+    /// Buffer does not exist.
+    BufferNotExist(usize),
 }
 
 impl Display for EpollHandlerError {
@@ -80,11 +89,19 @@ impl Display for UringHandlerError {
         match self {
             Self::IoUringCreate(s) => write!(f, "IoUring Create: {}", s),
             Self::Duplicate => write!(f, "The filehandle is already maped in. Possible duplicate?"),
+            Self::SubmissionPush => write!(f, "Submisionn push error. Is the squeue full?"),
             Self::Submission(s) => write!(f, "Submission: {}", s),
             Self::Slab(s) => write!(f, "Slab: {}", s),
             Self::SlabBugSetGet(s) => write!(f, "Slab Bug: {}", s),
             Self::RegisterHandles(s) => write!(f, "Register Handles: {}", s),
             Self::Slabbable(e) => write!(f, "Slabbable: {}", e),
+            Self::InvalidParameterI32(at, s, val) => write!(
+                f,
+                "Invalid input parameter value {} at {} when {}",
+                val, at, s
+            ),
+            Self::BufferNoOwnership(idx) => write!(f, "Buffer {} in invalid ownership state", idx),
+            Self::BufferNotExist(idx) => write!(f, "Buffer {} does not exist.", idx),
         }
     }
 }

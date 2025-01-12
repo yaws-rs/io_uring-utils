@@ -32,7 +32,15 @@ pub use fd::HandledFd;
 // Completion types
 //-----------------------------------------------
 pub mod completion;
+#[doc(inline)]
 pub use completion::Completion;
+
+//-----------------------------------------------
+// Ownership / of long living records / types
+//-----------------------------------------------
+mod ownership;
+#[doc(inline)]
+pub use ownership::Owner;
 
 //-----------------------------------------------
 // Epoll Uring Handler -> EpollCtl within Uring
@@ -40,7 +48,6 @@ pub use completion::Completion;
 mod epoll_uring;
 #[doc(inline)]
 pub use epoll_uring::EpollUringHandler;
-//pub use epoll_uring::{Completion, EpollUringHandler, SubmissionRecordStatus};
 
 //-----------------------------------------------
 // Uring Handler -> Core Uring handler

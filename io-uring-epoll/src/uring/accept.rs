@@ -58,11 +58,11 @@ impl UringHandler {
                 .fd_slab
                 .take_next_with(Completion::Accept(crate::slab::accept::init_accept_rec4())),
         }
-        .map_err(|e| UringHandlerError::Slabbable(e))?;
+        .map_err(UringHandlerError::Slabbable)?;
         let a_rec_t = self
             .fd_slab
             .slot_get_ref(key)
-            .map_err(|e| UringHandlerError::Slabbable(e))?;
+            .map_err(UringHandlerError::Slabbable)?;
         let dest_slot = None;
         let flags = libc::EFD_NONBLOCK & libc::EFD_CLOEXEC;
 

@@ -2,6 +2,7 @@
 
 use crate::slab::AcceptRec;
 use crate::slab::EpollRec;
+use crate::slab::ProvideBuffersRec;
 
 /// Completion types                      
 #[derive(Clone, Debug)]
@@ -10,6 +11,8 @@ pub enum Completion {
     EpollEvent(EpollRec),
     /// Accept Completion                 
     Accept(AcceptRec),
+    /// Provide Buffers
+    ProvideBuffers(ProvideBuffersRec),
 }
 
 /// What to do with the submission record upon handling completion.
