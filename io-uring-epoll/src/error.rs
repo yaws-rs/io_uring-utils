@@ -55,6 +55,10 @@ pub enum UringHandlerError {
     BufferNoOwnership(usize),
     /// Buffer does not exist.
     BufferNotExist(usize),
+    /// Cannot directly destroy futex atomics that are currently owned by the kernel. Use cancel_futex instead.
+    FutexNoOwnership(usize),
+    /// Futex Atomic does not exist.
+    FutexNotExist(usize),
 }
 
 impl Display for EpollHandlerError {
@@ -102,6 +106,8 @@ impl Display for UringHandlerError {
             ),
             Self::BufferNoOwnership(idx) => write!(f, "Buffer {} in invalid ownership state", idx),
             Self::BufferNotExist(idx) => write!(f, "Buffer {} does not exist.", idx),
+            Self::FutexNoOwnership(idx) => write!(f, "Futex {} in invalid ownership state", idx),
+            Self::FutexNotExist(idx) => write!(f, "Futex {} does not exist.", idx),
         }
     }
 }

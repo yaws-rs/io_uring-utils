@@ -7,7 +7,7 @@ use std::os::fd::AsRawFd;
 fn main() {
     // Creates new Epoll Uring handler with size 16 and capacity 16 for both fd and epoll registers
     let mut handler =
-        EpollUringHandler::new(16, 16, 16, 16).expect("Unable to create EPoll Handler");
+        EpollUringHandler::new(16, 16, 16, 16, 16).expect("Unable to create EPoll Handler");
 
     // This works with any impl that provides std::os::fd::AsRawFd impl
     // In POSIX/UNIX-like it's just i32 file number or "fileno"
