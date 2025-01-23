@@ -19,3 +19,7 @@ pub use epoll_ctl::EpollRec;
 pub(crate) mod buffer;
 #[doc(inline)]
 pub use buffer::{BuffersRec, ProvideBuffersRec};
+
+pub(crate) mod futex;
+#[doc(inline)]
+pub use futex::{FutexRec, FutexWaitRec};

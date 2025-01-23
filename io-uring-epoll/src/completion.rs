@@ -2,6 +2,7 @@
 
 use crate::slab::AcceptRec;
 use crate::slab::EpollRec;
+use crate::slab::FutexWaitRec;
 use crate::slab::ProvideBuffersRec;
 
 /// Completion types                      
@@ -13,6 +14,8 @@ pub enum Completion {
     Accept(AcceptRec),
     /// Provide Buffers
     ProvideBuffers(ProvideBuffersRec),
+    /// Futex Wait
+    FutexWait(FutexWaitRec),
 }
 
 /// What to do with the submission record upon handling completion.
