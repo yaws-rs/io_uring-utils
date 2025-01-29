@@ -1,5 +1,7 @@
 //! EpollHandler, EpollUringHandler, UringHandler Errors
 
+use crate::Owner;
+
 use core::fmt;
 use core::fmt::Display;
 
@@ -55,10 +57,35 @@ pub enum UringHandlerError {
     BufferNoOwnership(usize),
     /// Buffer does not exist.
     BufferNotExist(usize),
+    /// Cannot take Buffer
+    BufferTake(TakeError),
     /// Cannot directly destroy futex atomics that are currently owned by the kernel. Use cancel_futex instead.
     FutexNoOwnership(usize),
     /// Futex Atomic does not exist.
     FutexNotExist(usize),
+    /// Filehandle must be registered first
+    FdNotRegistered(u32),
+    /// Kernel has the ownership cannot push to kernel.
+    InvalidOwnership(Owner, usize),
+    /// Registered filehandles map is full at capacity.
+    FdRegisterFull,
+    /// Could not register filehandle.
+    FdRegisterFail,
+}
+
+/// Errors relating to taking (ownership)
+#[derive(Debug)]
+pub enum TakeError {
+    /// Already taken, typically internal error.
+    AlreadyTaken,
+    /// Kernel owns, cannot take.
+    KernelOwns,
+    /// User owns and must mark it for re-use first.
+    UserOwns,
+    /// Cannot take ownership of shared multi-ownership.
+    SharedMulti,
+    /// Cannot take multi-buffer-holder, requires one single buffer.
+    OnlyOneTakeable,
 }
 
 impl Display for EpollHandlerError {
@@ -106,8 +133,36 @@ impl Display for UringHandlerError {
             ),
             Self::BufferNoOwnership(idx) => write!(f, "Buffer {} in invalid ownership state", idx),
             Self::BufferNotExist(idx) => write!(f, "Buffer {} does not exist.", idx),
+            Self::BufferTake(take_err) => write!(f, "Unable to take buffer: {}", take_err),
             Self::FutexNoOwnership(idx) => write!(f, "Futex {} in invalid ownership state", idx),
             Self::FutexNotExist(idx) => write!(f, "Futex {} does not exist.", idx),
+            Self::FdNotRegistered(idx) => write!(f, "Fixed fd {} is not registered.", idx),
+            Self::InvalidOwnership(owner, idx) => {
+                write!(f, "Invalid current ownership {} of idx {}", owner, idx)
+            }
+            Self::FdRegisterFull => write!(
+                f,
+                "Map holding th registered filehandles is at capacity and cannot add more."
+            ),
+            Self::FdRegisterFail => write!(f, "Failed to register filehandle."),
+        }
+    }
+}
+
+impl Display for TakeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::AlreadyTaken => write!(f, "Kernel owns, cannot take."),
+            Self::KernelOwns => write!(
+                f,
+                "Kernel owns the buffer. Must be claered for re-use first."
+            ),
+            Self::UserOwns => write!(f, "User owns and must mark it for re-use first."),
+            Self::SharedMulti => write!(f, "Cannot take over shared multi-ownership."),
+            Self::OnlyOneTakeable => write!(
+                f,
+                "Cannot take multi-buffer-holder, requires one single buffer."
+            ),
         }
     }
 }
@@ -115,3 +170,4 @@ impl Display for UringHandlerError {
 impl Error for EpollUringHandlerError {}
 impl Error for UringHandlerError {}
 impl Error for EpollHandlerError {}
+impl Error for TakeError {}

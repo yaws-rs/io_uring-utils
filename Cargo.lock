@@ -64,8 +64,10 @@ dependencies = [
 name = "io-uring-epoll"
 version = "0.2.0"
 dependencies = [
+ "hashbrown",
  "io-uring",
  "libc",
+ "nohash-hasher",
  "slab",
  "slabbable",
  "slabbable-impl-selector",

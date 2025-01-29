@@ -9,6 +9,26 @@ use slabbable::Slabbable;
 
 use std::num::NonZero;
 
+use crate::slab::buffer::TakenBuffer;
+
+impl UringHandler {
+    /// Internal API for use of Recv handing out the buffer.
+    ///
+    /// # Limitation
+    ///
+    /// Only take num_bufs == 1 buffers as the underlying type is not designed for splitting it up.
+    // TODO: Should this be pub?
+    pub(crate) fn take_buffer(&mut self, buf_idx: usize) -> Result<TakenBuffer, UringHandlerError> {
+        let buf_ref = match self.bufs.slot_get_mut(buf_idx) {
+            Ok(Some(buf)) => buf,
+            Ok(None) => return Err(UringHandlerError::BufferNotExist(buf_idx)),
+            Err(e) => return Err(UringHandlerError::Slabbable(e)),
+        };
+        Ok(crate::slab::buffer::take_one_buffer_raw(buf_idx, buf_ref)
+            .map_err(UringHandlerError::BufferTake)?)
+    }
+}
+
 impl UringHandler {
     /// Allocate new buffer-set and return it's created index.
     pub fn create_buffers(

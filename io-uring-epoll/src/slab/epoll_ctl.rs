@@ -1,6 +1,7 @@
 //! EpollCtl Record
 
 use crate::fd::HandledFd;
+use crate::Owner;
 use crate::RawFd;
 
 /// EpollCtl Record
@@ -8,6 +9,8 @@ use crate::RawFd;
 pub struct EpollRec {
     /// Related filehandle
     fd: RawFd,
+    /// Current owner of the record
+    owner: Owner,
     /// Related Epoll Event
     ev: libc::epoll_event,
 }
@@ -21,12 +24,17 @@ impl EpollRec {
     pub fn ev(&self) -> libc::epoll_event {
         self.ev
     }
+    /// Current ownership
+    pub fn owner(&self) -> Owner {
+        self.owner.clone()
+    }
 }
 
 #[inline]
 pub(crate) fn event_rec(handled_fd: &HandledFd, user_data: u64) -> EpollRec {
     EpollRec {
         fd: handled_fd.fd,
+        owner: Owner::Created,
         ev: libc::epoll_event {
             events: handled_fd.wants as u32,
             u64: user_data,

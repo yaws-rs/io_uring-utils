@@ -33,7 +33,7 @@ impl EpollUringHandler {
     /// ```    
     pub fn new(
         capacity: u32,
-        fd_capacity: usize,
+        fd_capacity: u32,
         req_capacity: usize,
         buf_capacity: usize,
         fut_capacity: usize,
@@ -64,7 +64,7 @@ impl EpollUringHandler {
     /// ```    
     pub fn from_io_uring(
         iou: IoUring<io_uring::squeue::Entry, io_uring::cqueue::Entry>,
-        fd_capacity: usize,
+        fd_capacity: u32,
         req_capacity: usize,
         buf_capacity: usize,
         fut_capacity: usize,

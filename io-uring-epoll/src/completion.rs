@@ -4,6 +4,8 @@ use crate::slab::AcceptRec;
 use crate::slab::EpollRec;
 use crate::slab::FutexWaitRec;
 use crate::slab::ProvideBuffersRec;
+use crate::slab::{RecvMultiRec, RecvRec};
+use crate::Owner;
 
 /// Completion types                      
 #[derive(Clone, Debug)]
@@ -16,6 +18,37 @@ pub enum Completion {
     ProvideBuffers(ProvideBuffersRec),
     /// Futex Wait
     FutexWait(FutexWaitRec),
+    /// Recv
+    Recv(RecvRec),
+    /// RecvMulti
+    RecvMulti(RecvMultiRec),
+}
+
+impl Completion {
+    #[inline]
+    pub(crate) fn entry(&self) -> io_uring::squeue::Entry {
+        match self {
+            Completion::Recv(r) => r.entry(),
+            Completion::RecvMulti(r) => r.entry(),
+            _ => todo!(),
+        }
+    }
+    #[inline]
+    pub(crate) fn owner(&self) -> Owner {
+        match self {
+            Self::Recv(ref recv) => recv.owner(),
+            Self::RecvMulti(ref recv_multi) => recv_multi.owner(),
+            _ => todo!(),
+        }
+    }
+    #[inline]
+    pub(crate) fn force_owner_kernel(&mut self) -> bool {
+        match self {
+            Self::Recv(ref mut recv) => recv.force_owner_kernel(),
+            Self::RecvMulti(ref mut recv_multi) => recv_multi.force_owner_kernel(),
+            _ => todo!(),
+        }
+    }
 }
 
 /// What to do with the submission record upon handling completion.

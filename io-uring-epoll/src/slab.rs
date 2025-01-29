@@ -23,3 +23,7 @@ pub use buffer::{BuffersRec, ProvideBuffersRec};
 pub(crate) mod futex;
 #[doc(inline)]
 pub use futex::{FutexRec, FutexWaitRec};
+
+pub(crate) mod recv;
+#[doc(inline)]
+pub use recv::{RecvMultiRec, RecvRec};

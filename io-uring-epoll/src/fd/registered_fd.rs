@@ -12,3 +12,10 @@ pub(crate) struct RegisteredFd {
     /// RawFD of the registered handle     
     pub(crate) raw_fd: RawFd,
 }
+
+impl RegisteredFd {
+    #[inline]
+    pub(crate) fn from_raw(raw_fd: RawFd, kind: FdKind) -> Self {
+        Self { kind, raw_fd }
+    }
+}
