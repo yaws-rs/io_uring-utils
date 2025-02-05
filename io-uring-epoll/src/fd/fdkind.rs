@@ -14,4 +14,10 @@ pub(crate) enum FdKind {
     Acceptor,
     /// Manual handle                      
     Manual,
+    /// Recv Handle
+    Recv,
+    /// Send handle
+    Send,
+    /// Recv-Send Handle
+    RecvSend,
 }

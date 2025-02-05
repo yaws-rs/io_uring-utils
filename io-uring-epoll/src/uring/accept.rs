@@ -4,28 +4,10 @@ use super::UringHandler;
 use slabbable::Slabbable;
 
 use super::UringHandlerError; // TODO: COnsider AcceptError?
-use crate::fd::{FdKind, RegisteredFd};
 use crate::Completion;
 use crate::RawFd;
 
 impl UringHandler {
-    /// Register Acceptor handle used later with commit_registered_handles                     
-    ///                                                                                        
-    /// # RawFd Ownership                                                                      
-    ///                                                                                        
-    /// User is responsibe of owning and ensuring RawFd is valid                               
-    pub fn register_acceptor(&mut self, fd: RawFd) -> Result<usize, UringHandlerError> {
-        let entry = self.fd_register.vacant_entry();
-        let key = entry.key();
-        self.fd_register.insert((
-            key,
-            RegisteredFd {
-                kind: FdKind::Acceptor,
-                raw_fd: fd,
-            },
-        ));
-        Ok(key)
-    }
     /// Add Accept for a IPv4 TCP Listener                                                        
     ///                                                                                           
     /// # Safety                                                                                  

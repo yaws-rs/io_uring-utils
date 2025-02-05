@@ -1,6 +1,8 @@
 //! ProvideBuffers Slab Record
 
+use crate::error::TakeError;
 use crate::Owner;
+
 use std::marker::PhantomPinned;
 
 /// Holds the actual allocation for the Buffers that either owned by the Kernel or Userspace.
@@ -22,6 +24,10 @@ impl BuffersRec {
     /// Get the current ownership status.
     pub fn owner(&self) -> Owner {
         self.owner.clone()
+    }
+    /// Number of buffers in BuffersRec
+    pub fn num_bufs(&self) -> u16 {
+        self.num_bufs
     }
 }
 
@@ -50,6 +56,30 @@ pub struct ProvideBuffersRec {
     num_bufs: u16,
     bgid: u16,
     bid: u16,
+}
+
+/// Buffer is taken by something, let's provide it intermediate type.  
+#[derive(Clone, Debug)]
+pub(crate) struct TakenBuffer {
+    pub(crate) buf_idx: usize,
+    pub(crate) buf_mut_u8: *mut u8,
+    pub(crate) buf_size: u32,
+}
+
+#[inline]
+pub(crate) fn take_one_buffer_raw(
+    buf_idx: usize,
+    buf_rec: &mut BuffersRec,
+) -> Result<TakenBuffer, TakeError> {
+    if buf_rec.num_bufs() != 1 {
+        return Err(TakeError::OnlyOneTakeable);
+    }
+    buf_rec.owner.take()?;
+    Ok(TakenBuffer {
+        buf_idx,
+        buf_size: buf_rec.len_per_buf as u32,
+        buf_mut_u8: &raw mut buf_rec.all_bufs as *mut u8,
+    })
 }
 
 #[inline]

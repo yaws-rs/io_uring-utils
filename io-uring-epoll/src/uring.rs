@@ -3,21 +3,21 @@
 mod accept;
 mod buffers;
 mod futex;
+mod recv;
+mod register;
 
 use crate::error::UringHandlerError;
 
 use io_uring::IoUring;
 
-use std::os::fd::RawFd;
-
 use crate::completion::SubmissionRecordStatus;
-use crate::fd::RegisteredFd;
+use crate::fixed::FixedFdRegister;
 
 use crate::slab::BuffersRec;
 use crate::slab::FutexRec;
 use crate::Completion;
+use crate::Owner;
 
-use slab::Slab;
 use slabbable::Slabbable;
 use slabbable_impl_selector::SelectedSlab;
 
@@ -28,7 +28,7 @@ pub struct UringHandler {
     /// Completion events awaited
     pub(crate) fd_slab: SelectedSlab<Completion>,
     /// Registred Fds with io_uring
-    pub(crate) fd_register: Slab<(usize, RegisteredFd)>,
+    pub(crate) fd_register: FixedFdRegister,
     /// Allocated Buffers
     pub(crate) bufs: SelectedSlab<BuffersRec>,
     /// Futexes / Atomics
@@ -46,7 +46,7 @@ impl UringHandler {
     /// ```    
     pub fn new(
         q_capacity: u32,
-        fd_capacity: usize,
+        fd_capacity: u32,
         req_capacity: usize,
         buf_capacity: usize,
         fut_capacity: usize,
@@ -75,7 +75,7 @@ impl UringHandler {
     /// ```    
     pub fn from_io_uring(
         iou: IoUring<io_uring::squeue::Entry, io_uring::cqueue::Entry>,
-        fd_capacity: usize,
+        fd_capacity: u32,
         req_capacity: usize,
         buf_capacity: usize,
         fut_capacity: usize,
@@ -84,36 +84,12 @@ impl UringHandler {
             io_uring: iou,
             fd_slab: SelectedSlab::<Completion>::with_fixed_capacity(req_capacity)
                 .map_err(UringHandlerError::Slabbable)?,
-            fd_register: Slab::with_capacity(fd_capacity),
+            fd_register: FixedFdRegister::with_fixed_capacity(fd_capacity),
             bufs: SelectedSlab::<BuffersRec>::with_fixed_capacity(buf_capacity)
                 .map_err(UringHandlerError::Slabbable)?,
             futexes: SelectedSlab::<FutexRec>::with_fixed_capacity(fut_capacity)
                 .map_err(UringHandlerError::Slabbable)?,
         })
-    }
-    /// Push register for handles
-    /// Note kernel may mangle this table but generally adding entries to reserved -1 ones.
-    /// Generally make sure the queues are / can go empty before calling this
-    pub fn commit_registered_handles(&mut self) -> Result<(), UringHandlerError> {
-        let iou = &mut self.io_uring;
-        let submitter = iou.submitter();
-
-        let mut vec_i32: Vec<RawFd> = Vec::with_capacity(self.fd_register.capacity());
-        for idx in 0..self.fd_register.capacity() {
-            if let Some((_, itm)) = self.fd_register.get(idx) {
-                vec_i32.push(itm.raw_fd);
-            } else {
-                vec_i32.push(-1);
-            }
-        }
-
-        let slice_i32: &[i32] = &vec_i32[0..];
-
-        submitter
-            .register_files(slice_i32)
-            .map_err(|e| UringHandlerError::RegisterHandles(e.to_string()))?;
-
-        Ok(())
     }
     /// Spin the completions ring with custom handling without touching the
     /// original submission record
@@ -182,5 +158,34 @@ impl UringHandler {
         self.io_uring
             .submit_and_wait(want)
             .map_err(|e| UringHandlerError::Submission(e.to_string()))
+    }
+    #[inline]
+    pub(crate) fn push_completion(&mut self, idx: usize) -> Result<(), UringHandlerError> {
+        let iou = &mut self.io_uring;
+        let mut s_queue = iou.submission();
+
+        let completion_rec = self
+            .fd_slab
+            .slot_get_mut(idx)
+            .map_err(UringHandlerError::Slabbable)?;
+
+        let submission = match completion_rec {
+            Some(completion) => {
+                if completion.owner() == Owner::Kernel {
+                    return Err(UringHandlerError::InvalidOwnership(completion.owner(), idx));
+                }
+                completion.force_owner_kernel();
+                completion.entry().user_data(idx as u64)
+            }
+            _ => return Err(UringHandlerError::SlabBugSetGet("Submisison not found?")),
+        };
+        //                bufs_rec_ref.force_owner_kernel();
+        // SAFETY: We are backing the buffer & submission in the Slabbable stores. BufferRec buffer must not move
+        // from the referred address nor otherwise manipulated or invalidated until the ownership passes back to userspace
+        // or when the buffer/s are confirmed removed via RemoveBuffers otherwise.
+        match unsafe { s_queue.push(&submission) } {
+            Ok(_) => Ok(()),
+            Err(_) => Err(UringHandlerError::SubmissionPush),
+        }
     }
 }
