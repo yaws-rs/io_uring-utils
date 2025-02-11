@@ -9,27 +9,87 @@ use slabbable::Slabbable;
 
 use std::num::NonZero;
 
-use crate::slab::buffer::TakenBuffer;
+use crate::slab::buffer::{TakenImmutableBuffer, TakenMutableBuffer};
 
 impl UringHandler {
-    /// Internal API for use of Recv handing out the buffer.
+    /// Internal API for use of Recv handing a single buffer.
     ///
     /// # Limitation
     ///
     /// Only take num_bufs == 1 buffers as the underlying type is not designed for splitting it up.
-    // TODO: Should this be pub?
-    pub(crate) fn take_buffer(&mut self, buf_idx: usize) -> Result<TakenBuffer, UringHandlerError> {
+    pub(crate) fn take_one_mutable_buffer(
+        &mut self,
+        buf_idx: usize,
+    ) -> Result<TakenMutableBuffer, UringHandlerError> {
         let buf_ref = match self.bufs.slot_get_mut(buf_idx) {
             Ok(Some(buf)) => buf,
             Ok(None) => return Err(UringHandlerError::BufferNotExist(buf_idx)),
             Err(e) => return Err(UringHandlerError::Slabbable(e)),
         };
-        Ok(crate::slab::buffer::take_one_buffer_raw(buf_idx, buf_ref)
-            .map_err(UringHandlerError::BufferTake)?)
+        Ok(
+            crate::slab::buffer::take_one_mutable_buffer_raw(buf_idx, buf_ref)
+                .map_err(UringHandlerError::BufferTake)?,
+        )
+    }
+    /// Internal API for use of Send/Zc handing out a single buffer.
+    ///
+    /// # Limitation
+    ///
+    /// Only take num_bufs == 1 buffers as the underlying type is not designed for splitting it up.
+    pub(crate) fn take_one_immutable_buffer(
+        &mut self,
+        buf_idx: usize,
+        buf_kernel_idx: u16,
+    ) -> Result<TakenImmutableBuffer, UringHandlerError> {
+        let buf_ref = match self.bufs.slot_get_mut(buf_idx) {
+            Ok(Some(buf)) => buf,
+            Ok(None) => return Err(UringHandlerError::BufferNotExist(buf_idx)),
+            Err(e) => return Err(UringHandlerError::Slabbable(e)),
+        };
+        Ok(
+            crate::slab::buffer::take_one_immutable_buffer_raw(buf_idx, buf_kernel_idx, buf_ref)
+                .map_err(UringHandlerError::BufferTake)?,
+        )
     }
 }
 
 impl UringHandler {
+    /// View a selected buffer unsafely where buf_idx is the created buffers index,
+    /// buf_select is a buffer index within buffers created.
+    ///
+    /// # Safety
+    ///
+    /// We are not checking whether the kernel owns mutable reference to selefcted buffer.
+    /// User must ensure kernel has no mutable reference into the selected buffer.
+    ///
+    /// # Panic
+    ///
+    /// expected_len must be > 0 and must be within the bounds of created buffer length.
+    pub unsafe fn view_buffer_select_slice(
+        &self,
+        buf_idx: usize,
+        buf_select: u16,
+        expected_len: i32,
+    ) -> Result<&[u8], UringHandlerError> {
+        assert!(expected_len > 0);
+        let bufs = match self.bufs.slot_get_ref(buf_idx) {
+            Ok(Some(itm)) => itm,
+            Ok(None) => return Err(UringHandlerError::BufferNotExist(buf_idx)),
+            Err(e) => return Err(UringHandlerError::Slabbable(e)),
+        };
+        assert!(expected_len <= bufs.len_per_buf());
+        if bufs.num_bufs() < buf_select {
+            return Err(UringHandlerError::BufferSelectedNotExist(buf_select));
+        }
+        let all_bufs_ref = unsafe { bufs.all_bufs() };
+
+        let mut chunks = all_bufs_ref.chunks_exact(bufs.len_per_buf() as usize);
+
+        match chunks.nth(buf_select as usize) {
+            Some(ret) => Ok(ret),
+            None => Err(UringHandlerError::BufferSelectedNotExist(buf_select)),
+        }
+    }
     /// Allocate new buffer-set and return it's created index.
     pub fn create_buffers(
         &mut self,
@@ -82,6 +142,7 @@ impl UringHandler {
             },
             Ok(None) => return Err(UringHandlerError::BufferNoOwnership(created_buf_idx)),
         };
+
         let key = self
             .fd_slab
             .take_next_with(Completion::ProvideBuffers(

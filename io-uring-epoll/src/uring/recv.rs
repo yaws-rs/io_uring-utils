@@ -9,6 +9,7 @@ use crate::slab::{RecvMultiRec, RecvRec};
 use slabbable::Slabbable;
 
 impl UringHandler {
+    /*
     // TODO: this should be generic and FdKind'ed
     #[inline]
     fn _fixed_fd_validate(&self, try_fixed_fd: u32) -> bool {
@@ -19,10 +20,10 @@ impl UringHandler {
             Some((_, _itm)) => true,
             _ => false,
         }
-    }
-    /// Add Recv pending Completion
+    } */
+    /// Add Recv pending Completion. The referenced buffers index must hold only one buffer.
     pub fn add_recv(&mut self, fixed_fd: u32, buf_idx: usize) -> Result<usize, UringHandlerError> {
-        let taken_buf = self.take_buffer(buf_idx)?;
+        let taken_buf = self.take_one_mutable_buffer(buf_idx)?;
         if !self._fixed_fd_validate(fixed_fd) {
             return Err(UringHandlerError::FdNotRegistered(fixed_fd));
         }

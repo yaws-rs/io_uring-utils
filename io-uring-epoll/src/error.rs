@@ -57,6 +57,8 @@ pub enum UringHandlerError {
     BufferNoOwnership(usize),
     /// Buffer does not exist.
     BufferNotExist(usize),
+    /// Buffer selected within Buffers does not exist.
+    BufferSelectedNotExist(u16),
     /// Cannot take Buffer
     BufferTake(TakeError),
     /// Cannot directly destroy futex atomics that are currently owned by the kernel. Use cancel_futex instead.
@@ -133,6 +135,11 @@ impl Display for UringHandlerError {
             ),
             Self::BufferNoOwnership(idx) => write!(f, "Buffer {} in invalid ownership state", idx),
             Self::BufferNotExist(idx) => write!(f, "Buffer {} does not exist.", idx),
+            Self::BufferSelectedNotExist(sel_idx) => write!(
+                f,
+                "Selected {} does not exist within the given buffer.",
+                sel_idx
+            ),
             Self::BufferTake(take_err) => write!(f, "Unable to take buffer: {}", take_err),
             Self::FutexNoOwnership(idx) => write!(f, "Futex {} in invalid ownership state", idx),
             Self::FutexNotExist(idx) => write!(f, "Futex {} does not exist.", idx),

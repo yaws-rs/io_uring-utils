@@ -27,3 +27,7 @@ pub use futex::{FutexRec, FutexWaitRec};
 pub(crate) mod recv;
 #[doc(inline)]
 pub use recv::{RecvMultiRec, RecvRec};
+
+pub(crate) mod send_zc;
+#[doc(inline)]
+pub use send_zc::SendZcRec;

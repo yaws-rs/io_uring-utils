@@ -25,9 +25,21 @@ impl BuffersRec {
     pub fn owner(&self) -> Owner {
         self.owner.clone()
     }
+    /// Lenght per buffer in BuffersRec
+    pub fn len_per_buf(&self) -> i32 {
+        self.len_per_buf
+    }
     /// Number of buffers in BuffersRec
     pub fn num_bufs(&self) -> u16 {
         self.num_bufs
+    }
+    /// All buffers.
+    ///
+    /// # Safety
+    ///
+    /// The whole set of buffers may have been provided to kernel as mutable.
+    pub unsafe fn all_bufs(&self) -> &Vec<u8> {
+        &self.all_bufs
     }
 }
 
@@ -58,34 +70,61 @@ pub struct ProvideBuffersRec {
     bid: u16,
 }
 
-/// Buffer is taken by something, let's provide it intermediate type.  
+/// Mutable Buffer is taken by something, let's provide it intermediate type.  
 #[derive(Clone, Debug)]
-pub(crate) struct TakenBuffer {
+pub(crate) struct TakenMutableBuffer {
     pub(crate) buf_idx: usize,
     pub(crate) buf_mut_u8: *mut u8,
     pub(crate) buf_size: u32,
 }
 
 #[inline]
-pub(crate) fn take_one_buffer_raw(
+pub(crate) fn take_one_mutable_buffer_raw(
     buf_idx: usize,
     buf_rec: &mut BuffersRec,
-) -> Result<TakenBuffer, TakeError> {
+) -> Result<TakenMutableBuffer, TakeError> {
     if buf_rec.num_bufs() != 1 {
         return Err(TakeError::OnlyOneTakeable);
     }
     buf_rec.owner.take()?;
-    Ok(TakenBuffer {
+    Ok(TakenMutableBuffer {
         buf_idx,
         buf_size: buf_rec.len_per_buf as u32,
         buf_mut_u8: &raw mut buf_rec.all_bufs as *mut u8,
     })
 }
 
+/// Buffer is taken by something for Read-Only, let's provide it intermediate type.  
+#[derive(Clone, Debug)]
+pub(crate) struct TakenImmutableBuffer {
+    pub(crate) buf_idx: usize,
+    pub(crate) buf_const_u8: *const u8,
+    pub(crate) buf_size: u32,
+    pub(crate) buf_kernel_index: u16,
+}
+
+#[inline]
+pub(crate) fn take_one_immutable_buffer_raw(
+    buf_idx: usize,
+    buf_kernel_index: u16,
+    buf_rec: &mut BuffersRec,
+) -> Result<TakenImmutableBuffer, TakeError> {
+    if buf_rec.num_bufs() != 1 {
+        return Err(TakeError::OnlyOneTakeable);
+    }
+    buf_rec.owner.take()?;
+    Ok(TakenImmutableBuffer {
+        buf_idx,
+        buf_size: buf_rec.len_per_buf as u32,
+        buf_const_u8: buf_rec.all_bufs.as_ptr(),
+        buf_kernel_index,
+    })
+}
+
 #[inline]
 pub(crate) fn provide_buffer_rec(bgid: u16, bid: u16, buf: &mut BuffersRec) -> ProvideBuffersRec {
     ProvideBuffersRec {
-        buf: &raw mut buf.all_bufs as *mut u8,
+        buf: buf.all_bufs.as_mut_ptr(),
         len_per_buf: buf.len_per_buf,
         num_bufs: buf.num_bufs,
         bgid,
