@@ -4,6 +4,7 @@ use crate::slab::AcceptRec;
 use crate::slab::EpollRec;
 use crate::slab::FutexWaitRec;
 use crate::slab::ProvideBuffersRec;
+use crate::slab::SendZcRec;
 use crate::slab::{RecvMultiRec, RecvRec};
 use crate::Owner;
 
@@ -22,6 +23,8 @@ pub enum Completion {
     Recv(RecvRec),
     /// RecvMulti
     RecvMulti(RecvMultiRec),
+    /// SendZc
+    SendZc(SendZcRec),
 }
 
 impl Completion {
@@ -30,6 +33,7 @@ impl Completion {
         match self {
             Completion::Recv(r) => r.entry(),
             Completion::RecvMulti(r) => r.entry(),
+            Completion::SendZc(r) => r.entry(),
             _ => todo!(),
         }
     }
@@ -38,6 +42,7 @@ impl Completion {
         match self {
             Self::Recv(ref recv) => recv.owner(),
             Self::RecvMulti(ref recv_multi) => recv_multi.owner(),
+            Self::SendZc(ref send_zc) => send_zc.owner(),
             _ => todo!(),
         }
     }
@@ -46,6 +51,7 @@ impl Completion {
         match self {
             Self::Recv(ref mut recv) => recv.force_owner_kernel(),
             Self::RecvMulti(ref mut recv_multi) => recv_multi.force_owner_kernel(),
+            Self::SendZc(ref mut send_zc) => send_zc.force_owner_kernel(),
             _ => todo!(),
         }
     }

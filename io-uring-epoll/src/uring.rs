@@ -5,6 +5,7 @@ mod buffers;
 mod futex;
 mod recv;
 mod register;
+mod send_zc;
 
 use crate::error::UringHandlerError;
 
@@ -186,6 +187,17 @@ impl UringHandler {
         match unsafe { s_queue.push(&submission) } {
             Ok(_) => Ok(()),
             Err(_) => Err(UringHandlerError::SubmissionPush),
+        }
+    }
+    // TODO: Rework - this should be generic and FdKind'ed
+    #[inline]
+    fn _fixed_fd_validate(&self, try_fixed_fd: u32) -> bool {
+        if try_fixed_fd > self.fd_register.capacity() - 1 {
+            return false;
+        }
+        match self.fd_register.get(try_fixed_fd) {
+            Some((_, _itm)) => true,
+            _ => false,
         }
     }
 }
