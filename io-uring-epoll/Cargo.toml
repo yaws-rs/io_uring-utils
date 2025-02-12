@@ -11,14 +11,16 @@ repository = "https://github.com/yaws-rs/io_uring-utils/tree/main/io-uring-epoll
 categories = ["science"]
 
 [dependencies]
-hashbrown = "0.15.2"
-io-uring = { version = "0.7" }
+#hashbrown = "0.15.2"
+#io-uring = { version = "0.7" }
 libc = { version = "0.2", features = ["extra_traits"] }
-nohash-hasher = "0.2.0"
-slab = { version = "0.4" }
-slabbable = { version = "0.1", path = "../../edifice/slabbable" }
-#slabbable-slab = { version = "0.1", path = "../edifice/slabbable-impls/slabbable-slab" }
-slabbable-impl-selector = { version = "0.1", path = "../../edifice/slabbable-impl-selector" }
+io-uring-opcode = { version = "0.1", path = "../io-uring-opcode" }
+io-uring-bearer = { version = "0.1", path = "../io-uring-bearer" }
+io-uring-fd = { version = "0.1", path = "../io-uring-fd" }
+#nohash-hasher = "0.2.0"
+#slab = { version = "0.4" }
+#slabbable = { version = "0.1", path = "../../edifice/slabbable" }
+#slabbable-impl-selector = { version = "0.1", path = "../../edifice/slabbable-impl-selector" }
 
 [features]
 default = []

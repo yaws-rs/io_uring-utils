@@ -1,36 +1,25 @@
 //! Recv OpCodes API Surface
 
-use crate::uring::UringHandlerError;
+use crate::uring::UringBearerError;
 use crate::Completion;
-use crate::UringHandler;
+use crate::UringBearer;
 
 use crate::slab::{RecvMultiRec, RecvRec};
 
+use io_uring_opcode::OpCompletion;
 use slabbable::Slabbable;
 
-impl UringHandler {
-    /*
-    // TODO: this should be generic and FdKind'ed
-    #[inline]
-    fn _fixed_fd_validate(&self, try_fixed_fd: u32) -> bool {
-        if try_fixed_fd > self.fd_register.capacity() - 1 {
-            return false;
-        }
-        match self.fd_register.get(try_fixed_fd) {
-            Some((_, _itm)) => true,
-            _ => false,
-        }
-    } */
+impl<C: core::fmt::Debug + Clone + OpCompletion> UringBearer<C> {
     /// Add Recv pending Completion. The referenced buffers index must hold only one buffer.
-    pub fn add_recv(&mut self, fixed_fd: u32, buf_idx: usize) -> Result<usize, UringHandlerError> {
+    pub fn add_recv(&mut self, fixed_fd: u32, buf_idx: usize) -> Result<usize, UringBearerError> {
         let taken_buf = self.take_one_mutable_buffer(buf_idx)?;
         if !self._fixed_fd_validate(fixed_fd) {
-            return Err(UringHandlerError::FdNotRegistered(fixed_fd));
+            return Err(UringBearerError::FdNotRegistered(fixed_fd));
         }
         let key = self
             .fd_slab
             .take_next_with(Completion::Recv(RecvRec::new(fixed_fd as u32, taken_buf)))
-            .map_err(UringHandlerError::Slabbable)?;
+            .map_err(UringBearerError::Slabbable)?;
 
         self.push_completion(key)?;
         Ok(key)
@@ -40,9 +29,9 @@ impl UringHandler {
         &mut self,
         fixed_fd: u32,
         buf_group: u16,
-    ) -> Result<usize, UringHandlerError> {
+    ) -> Result<usize, UringBearerError> {
         if !self._fixed_fd_validate(fixed_fd) {
-            return Err(UringHandlerError::FdNotRegistered(fixed_fd));
+            return Err(UringBearerError::FdNotRegistered(fixed_fd));
         }
         let key = self
             .fd_slab
@@ -50,7 +39,7 @@ impl UringHandler {
                 fixed_fd as u32,
                 buf_group,
             )))
-            .map_err(UringHandlerError::Slabbable)?;
+            .map_err(UringBearerError::Slabbable)?;
 
         self.push_completion(key)?;
         Ok(key)

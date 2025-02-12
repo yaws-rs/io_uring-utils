@@ -1,0 +1,16 @@
+[package]
+name = "io-uring-owner"
+version = "0.1.0"
+edition = "2021"
+description = "io_uring owner type for the ownership management"
+homepage = "https://github.com/yaws-rs/io_uring-utils"
+keywords = ["io", "uring", "epoll", "async"]
+license = "Apache-2.0/MIT"
+readme = "README.md"
+repository = "https://github.com/yaws-rs/io_uring-utils"
+categories = ["science"]
+
+[dependencies]
+
+[features]
+default = []

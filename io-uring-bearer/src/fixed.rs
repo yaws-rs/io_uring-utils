@@ -2,8 +2,8 @@
 //! Some io_uring operations require "fixed" or "registered" filehandle (or buffer)
 //! Keeping track of these things here.
 
-use crate::fd::RegisteredFd;
 use hashbrown::HashMap as SelectedHashMap;
+use io_uring_fd::RegisteredFd;
 use nohash_hasher::BuildNoHashHasher as SelectedHasher;
 use slab::{Slab, VacantEntry};
 

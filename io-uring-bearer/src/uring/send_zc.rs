@@ -1,14 +1,15 @@
 //! SendZc OpCode API Surface
 
-use crate::uring::UringHandlerError;
+use crate::uring::UringBearerError;
 use crate::Completion;
-use crate::UringHandler;
+use crate::UringBearer;
 
 use crate::slab::SendZcRec;
 
+use io_uring_opcode::OpCompletion;
 use slabbable::Slabbable;
 
-impl UringHandler {
+impl<C: core::fmt::Debug + Clone + OpCompletion> UringBearer<C> {
     /// Add SendZc pending Completion. The referenced buffers index must hold
     /// only one buffer and must be registered into kernel with a valid indexed
     /// buffer id.
@@ -17,10 +18,10 @@ impl UringHandler {
         fixed_fd: u32,
         buf_idx: usize,
         kernel_index: u16,
-    ) -> Result<usize, UringHandlerError> {
+    ) -> Result<usize, UringBearerError> {
         let taken_buf = self.take_one_immutable_buffer(buf_idx, kernel_index)?;
         if !self._fixed_fd_validate(fixed_fd) {
-            return Err(UringHandlerError::FdNotRegistered(fixed_fd));
+            return Err(UringBearerError::FdNotRegistered(fixed_fd));
         }
         let key = self
             .fd_slab
@@ -28,7 +29,7 @@ impl UringHandler {
                 fixed_fd as u32,
                 taken_buf,
             )))
-            .map_err(UringHandlerError::Slabbable)?;
+            .map_err(UringBearerError::Slabbable)?;
 
         self.push_completion(key)?;
         Ok(key)
