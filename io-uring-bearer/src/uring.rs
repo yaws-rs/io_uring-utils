@@ -7,7 +7,7 @@ mod recv;
 mod register;
 mod send_zc;
 
-use crate::error::UringHandlerError;
+use crate::error::UringBearerError;
 
 use io_uring::IoUring;
 
@@ -19,15 +19,20 @@ use crate::slab::FutexRec;
 use crate::Completion;
 use crate::Owner;
 
+use io_uring_opcode::{OpCode, OpCompletion};
 use slabbable::Slabbable;
 use slabbable_impl_selector::SelectedSlab;
 
+use crate::BearerCapacityKind;
+use capacity::Capacity;
+use capacity::Setting as CapacitySetting;
+
 /// Manage the io_uring Submission and Completion Queues
-pub struct UringHandler {
+pub struct UringBearer<C> {
     /// io_uring Managed instance
     pub(crate) io_uring: IoUring<io_uring::squeue::Entry, io_uring::cqueue::Entry>,
     /// Completion events awaited
-    pub(crate) fd_slab: SelectedSlab<Completion>,
+    pub(crate) fd_slab: SelectedSlab<Completion<C>>,
     /// Registred Fds with io_uring
     pub(crate) fd_register: FixedFdRegister,
     /// Allocated Buffers
@@ -36,67 +41,68 @@ pub struct UringHandler {
     pub(crate) futexes: SelectedSlab<FutexRec>,
 }
 
-impl UringHandler {
+impl<C: core::fmt::Debug + Clone + OpCompletion> UringBearer<C> {
     /// Create a new handler with new io-uring::IoUring
     ///
     /// capacity must be power of two as per io-uring documentation
-    /// ```rust
-    /// use io_uring_epoll::UringHandler;
+    /// ```ignore
+    /// use io_uring_epoll::UringBearer;
     ///
-    /// UringHandler::new(16, 16, 16, 16, 16).expect("Unable to create EPoll Handler");
+    /// UringBearer::new(16, 16, 16, 16, 16).expect("Unable to create EPoll Handler");
     /// ```    
-    pub fn new(
-        q_capacity: u32,
-        fd_capacity: u32,
-        req_capacity: usize,
-        buf_capacity: usize,
-        fut_capacity: usize,
-    ) -> Result<Self, UringHandlerError> {
+    pub fn new<H: CapacitySetting<BearerCapacityKind>>(
+        caps: Capacity<H, BearerCapacityKind>,
+    ) -> Result<Self, UringBearerError> {
         let iou: IoUring<io_uring::squeue::Entry, io_uring::cqueue::Entry> = IoUring::builder()
-            .build(q_capacity)
-            .map_err(|e| UringHandlerError::IoUringCreate(e.to_string()))?;
+            .build(caps.of_unbounded(&BearerCapacityKind::CoreQueue) as u32)
+            .map_err(|e| UringBearerError::IoUringCreate(e.to_string()))?;
 
-        Self::from_io_uring(iou, fd_capacity, req_capacity, buf_capacity, fut_capacity)
+        Self::from_io_uring(iou, caps)
     }
     /// Create a new handler from an existing io-uring::IoUring builder
     /// To construct a custom IoUring see io-uring Builder:
     /// <https://docs.rs/io-uring/latest/io_uring/struct.Builder.html>
     ///
     /// Example:
-    /// ```rust
+    /// ```ignore
     /// use io_uring::IoUring;
-    /// use io_uring_epoll::UringHandler;
+    /// use io_uring_epoll::UringBearer;
     ///
     /// let mut iou: IoUring<io_uring::squeue::Entry, io_uring::cqueue::Entry>
     ///     = IoUring::builder()
     ///         .build(100)
     ///         .expect("Unable to build IoUring");
     ///
-    /// UringHandler::from_io_uring(iou, 16, 16, 16, 16).expect("Unable to create from io_uring Builder");
+    /// UringBearer::from_io_uring(iou, 16, 16, 16, 16).expect("Unable to create from io_uring Builder");
     /// ```    
-    pub fn from_io_uring(
+    pub fn from_io_uring<H: CapacitySetting<BearerCapacityKind>>(
         iou: IoUring<io_uring::squeue::Entry, io_uring::cqueue::Entry>,
-        fd_capacity: u32,
-        req_capacity: usize,
-        buf_capacity: usize,
-        fut_capacity: usize,
-    ) -> Result<Self, UringHandlerError> {
+        caps: Capacity<H, BearerCapacityKind>,
+    ) -> Result<Self, UringBearerError> {
         Ok(Self {
             io_uring: iou,
-            fd_slab: SelectedSlab::<Completion>::with_fixed_capacity(req_capacity)
-                .map_err(UringHandlerError::Slabbable)?,
-            fd_register: FixedFdRegister::with_fixed_capacity(fd_capacity),
-            bufs: SelectedSlab::<BuffersRec>::with_fixed_capacity(buf_capacity)
-                .map_err(UringHandlerError::Slabbable)?,
-            futexes: SelectedSlab::<FutexRec>::with_fixed_capacity(fut_capacity)
-                .map_err(UringHandlerError::Slabbable)?,
+            fd_slab: SelectedSlab::<Completion<C>>::with_fixed_capacity(
+                caps.of_unbounded(&BearerCapacityKind::PendingCompletions),
+            )
+            .map_err(UringBearerError::Slabbable)?,
+            fd_register: FixedFdRegister::with_fixed_capacity(
+                caps.of_unbounded(&BearerCapacityKind::RegisteredFd) as u32,
+            ),
+            bufs: SelectedSlab::<BuffersRec>::with_fixed_capacity(
+                caps.of_unbounded(&BearerCapacityKind::Buffers),
+            )
+            .map_err(UringBearerError::Slabbable)?,
+            futexes: SelectedSlab::<FutexRec>::with_fixed_capacity(
+                caps.of_unbounded(&BearerCapacityKind::Futexes),
+            )
+            .map_err(UringBearerError::Slabbable)?,
         })
     }
     /// Spin the completions ring with custom handling without touching the
     /// original submission record
-    pub fn completions<F, U>(&mut self, user: &mut U, func: F) -> Result<(), UringHandlerError>
+    pub fn completions<F, U>(&mut self, user: &mut U, func: F) -> Result<(), UringBearerError>
     where
-        F: Fn(&mut U, &io_uring::cqueue::Entry, &Completion),
+        F: Fn(&mut U, &io_uring::cqueue::Entry, &Completion<C>),
     {
         // SAFETY: We Retain the original submission record and don't move it.
         unsafe {
@@ -120,9 +126,9 @@ impl UringHandler {
         &mut self,
         user: &mut U,
         func: F,
-    ) -> Result<(), UringHandlerError>
+    ) -> Result<(), UringBearerError>
     where
-        F: Fn(&mut U, &io_uring::cqueue::Entry, &Completion) -> SubmissionRecordStatus,
+        F: Fn(&mut U, &io_uring::cqueue::Entry, &Completion<C>) -> SubmissionRecordStatus,
     {
         let iou = &mut self.io_uring;
         let c_queue = iou.completion();
@@ -131,14 +137,14 @@ impl UringHandler {
             let a_rec_t = self
                 .fd_slab
                 .slot_get_ref(key as usize)
-                .map_err(UringHandlerError::Slabbable)?;
+                .map_err(UringBearerError::Slabbable)?;
 
             if let Some(completed_rec) = a_rec_t {
                 let rec_status = func(user, &item, completed_rec);
                 if rec_status == SubmissionRecordStatus::Forget {
                     self.fd_slab
                         .mark_for_reuse(key as usize)
-                        .map_err(UringHandlerError::Slabbable)?;
+                        .map_err(UringBearerError::Slabbable)?;
                 }
             }
         }
@@ -149,36 +155,52 @@ impl UringHandler {
         &mut self.io_uring
     }
     /// This calls the underlying io_uring::IoUring::submit submitting all the staged commits
-    pub fn submit(&self) -> Result<usize, UringHandlerError> {
+    pub fn submit(&self) -> Result<usize, UringBearerError> {
         self.io_uring
             .submit()
-            .map_err(|e| UringHandlerError::Submission(e.to_string()))
+            .map_err(|e| UringBearerError::Submission(e.to_string()))
     }
     /// Same as submit but using io_uring::IoUring::submit_and_wait
-    pub fn submit_and_wait(&self, want: usize) -> Result<usize, UringHandlerError> {
+    pub fn submit_and_wait(&self, want: usize) -> Result<usize, UringBearerError> {
         self.io_uring
             .submit_and_wait(want)
-            .map_err(|e| UringHandlerError::Submission(e.to_string()))
+            .map_err(|e| UringBearerError::Submission(e.to_string()))
+    }
+    /// Register Filehandle
+    /// Push an op implementing OpCode trait (see io-uring-opcode)
+    pub fn push_op<Op: OpCode<C>>(&mut self, mut op: Op) -> Result<usize, UringBearerError>
+    where
+        <Op as OpCode<C>>::Error: core::fmt::Debug,
+    {
+        let key = self
+            .fd_slab
+            .take_next_with(Completion::Op(op.submission().unwrap())) // TODO error type
+            .map_err(UringBearerError::Slabbable)?;
+
+        match self.push_completion(key) {
+            Err(e) => Err(e),
+            Ok(()) => Ok(key),
+        }
     }
     #[inline]
-    pub(crate) fn push_completion(&mut self, idx: usize) -> Result<(), UringHandlerError> {
+    pub(crate) fn push_completion(&mut self, idx: usize) -> Result<(), UringBearerError> {
         let iou = &mut self.io_uring;
         let mut s_queue = iou.submission();
 
         let completion_rec = self
             .fd_slab
             .slot_get_mut(idx)
-            .map_err(UringHandlerError::Slabbable)?;
+            .map_err(UringBearerError::Slabbable)?;
 
         let submission = match completion_rec {
             Some(completion) => {
                 if completion.owner() == Owner::Kernel {
-                    return Err(UringHandlerError::InvalidOwnership(completion.owner(), idx));
+                    return Err(UringBearerError::InvalidOwnership(completion.owner(), idx));
                 }
                 completion.force_owner_kernel();
                 completion.entry().user_data(idx as u64)
             }
-            _ => return Err(UringHandlerError::SlabBugSetGet("Submisison not found?")),
+            _ => return Err(UringBearerError::SlabBugSetGet("Submisison not found?")),
         };
         //                bufs_rec_ref.force_owner_kernel();
         // SAFETY: We are backing the buffer & submission in the Slabbable stores. BufferRec buffer must not move
@@ -186,7 +208,7 @@ impl UringHandler {
         // or when the buffer/s are confirmed removed via RemoveBuffers otherwise.
         match unsafe { s_queue.push(&submission) } {
             Ok(_) => Ok(()),
-            Err(_) => Err(UringHandlerError::SubmissionPush),
+            Err(_) => Err(UringBearerError::SubmissionPush),
         }
     }
     // TODO: Rework - this should be generic and FdKind'ed

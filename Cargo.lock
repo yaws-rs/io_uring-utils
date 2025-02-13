@@ -21,6 +21,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b048fb63fd8b5923fc5aa7b340d8e156aec7ec02f0c78fa8a6ddc2613f6f71de"
 
 [[package]]
+name = "capacity"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a937871bdde7e8bdde7eb5029a96b425b19eaedb32b119d9a677436117ebb144"
+
+[[package]]
 name = "cfg-if"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -51,9 +57,9 @@ dependencies = [
 
 [[package]]
 name = "io-uring"
-version = "0.7.2"
+version = "0.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4c96e3f73fd5acaee84ecfabb4414875b688667b5276372cdeff64444fab81ee"
+checksum = "ab01638bb6a279897b7691f87f3f3c232451711fd419a69ced980ce61074fa46"
 dependencies = [
  "bitflags",
  "cfg-if",
@@ -61,17 +67,46 @@ dependencies = [
 ]
 
 [[package]]
-name = "io-uring-epoll"
-version = "0.2.0"
+name = "io-uring-bearer"
+version = "0.1.0"
 dependencies = [
+ "capacity",
  "hashbrown",
  "io-uring",
+ "io-uring-fd",
+ "io-uring-opcode",
  "libc",
  "nohash-hasher",
  "slab",
  "slabbable",
  "slabbable-impl-selector",
 ]
+
+[[package]]
+name = "io-uring-epoll"
+version = "0.2.0"
+dependencies = [
+ "io-uring-bearer",
+ "io-uring-fd",
+ "io-uring-opcode",
+ "libc",
+]
+
+[[package]]
+name = "io-uring-fd"
+version = "0.1.0"
+
+[[package]]
+name = "io-uring-opcode"
+version = "0.1.0"
+dependencies = [
+ "io-uring",
+ "io-uring-owner",
+]
+
+[[package]]
+name = "io-uring-owner"
+version = "0.1.0"
 
 [[package]]
 name = "libc"

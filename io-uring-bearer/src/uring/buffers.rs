@@ -1,17 +1,18 @@
 //! ProvideBuffers OpCode API Surface
 
-use crate::uring::UringHandlerError;
+use crate::uring::UringBearerError;
 use crate::Completion;
 use crate::Owner;
-use crate::UringHandler;
+use crate::UringBearer;
 
 use slabbable::Slabbable;
 
 use std::num::NonZero;
 
 use crate::slab::buffer::{TakenImmutableBuffer, TakenMutableBuffer};
+use io_uring_opcode::OpCompletion;
 
-impl UringHandler {
+impl<C: core::fmt::Debug + Clone + OpCompletion> UringBearer<C> {
     /// Internal API for use of Recv handing a single buffer.
     ///
     /// # Limitation
@@ -20,15 +21,15 @@ impl UringHandler {
     pub(crate) fn take_one_mutable_buffer(
         &mut self,
         buf_idx: usize,
-    ) -> Result<TakenMutableBuffer, UringHandlerError> {
+    ) -> Result<TakenMutableBuffer, UringBearerError> {
         let buf_ref = match self.bufs.slot_get_mut(buf_idx) {
             Ok(Some(buf)) => buf,
-            Ok(None) => return Err(UringHandlerError::BufferNotExist(buf_idx)),
-            Err(e) => return Err(UringHandlerError::Slabbable(e)),
+            Ok(None) => return Err(UringBearerError::BufferNotExist(buf_idx)),
+            Err(e) => return Err(UringBearerError::Slabbable(e)),
         };
         Ok(
             crate::slab::buffer::take_one_mutable_buffer_raw(buf_idx, buf_ref)
-                .map_err(UringHandlerError::BufferTake)?,
+                .map_err(UringBearerError::BufferTake)?,
         )
     }
     /// Internal API for use of Send/Zc handing out a single buffer.
@@ -40,20 +41,20 @@ impl UringHandler {
         &mut self,
         buf_idx: usize,
         buf_kernel_idx: u16,
-    ) -> Result<TakenImmutableBuffer, UringHandlerError> {
+    ) -> Result<TakenImmutableBuffer, UringBearerError> {
         let buf_ref = match self.bufs.slot_get_mut(buf_idx) {
             Ok(Some(buf)) => buf,
-            Ok(None) => return Err(UringHandlerError::BufferNotExist(buf_idx)),
-            Err(e) => return Err(UringHandlerError::Slabbable(e)),
+            Ok(None) => return Err(UringBearerError::BufferNotExist(buf_idx)),
+            Err(e) => return Err(UringBearerError::Slabbable(e)),
         };
         Ok(
             crate::slab::buffer::take_one_immutable_buffer_raw(buf_idx, buf_kernel_idx, buf_ref)
-                .map_err(UringHandlerError::BufferTake)?,
+                .map_err(UringBearerError::BufferTake)?,
         )
     }
 }
 
-impl UringHandler {
+impl<C: core::fmt::Debug + Clone + OpCompletion> UringBearer<C> {
     /// View a selected buffer unsafely where buf_idx is the created buffers index,
     /// buf_select is a buffer index within buffers created.
     ///
@@ -70,16 +71,16 @@ impl UringHandler {
         buf_idx: usize,
         buf_select: u16,
         expected_len: i32,
-    ) -> Result<&[u8], UringHandlerError> {
+    ) -> Result<&[u8], UringBearerError> {
         assert!(expected_len > 0);
         let bufs = match self.bufs.slot_get_ref(buf_idx) {
             Ok(Some(itm)) => itm,
-            Ok(None) => return Err(UringHandlerError::BufferNotExist(buf_idx)),
-            Err(e) => return Err(UringHandlerError::Slabbable(e)),
+            Ok(None) => return Err(UringBearerError::BufferNotExist(buf_idx)),
+            Err(e) => return Err(UringBearerError::Slabbable(e)),
         };
         assert!(expected_len <= bufs.len_per_buf());
         if bufs.num_bufs() < buf_select {
-            return Err(UringHandlerError::BufferSelectedNotExist(buf_select));
+            return Err(UringBearerError::BufferSelectedNotExist(buf_select));
         }
         let all_bufs_ref = unsafe { bufs.all_bufs() };
 
@@ -87,7 +88,7 @@ impl UringHandler {
 
         match chunks.nth(buf_select as usize) {
             Some(ret) => Ok(ret),
-            None => Err(UringHandlerError::BufferSelectedNotExist(buf_select)),
+            None => Err(UringBearerError::BufferSelectedNotExist(buf_select)),
         }
     }
     /// Allocate new buffer-set and return it's created index.
@@ -95,10 +96,10 @@ impl UringHandler {
         &mut self,
         num_bufs: NonZero<u16>,
         len_per_buf: i32,
-    ) -> Result<usize, UringHandlerError> {
+    ) -> Result<usize, UringBearerError> {
         if len_per_buf <= 0 {
-            return Err(UringHandlerError::InvalidParameterI32(
-                "UringHandler::create_buffers",
+            return Err(UringBearerError::InvalidParameterI32(
+                "UringBearer::create_buffers",
                 "len_per_buf <= 0",
                 len_per_buf,
             ));
@@ -109,22 +110,22 @@ impl UringHandler {
                 len_per_buf,
                 num_bufs.get(),
             ))
-            .map_err(UringHandlerError::Slabbable)
+            .map_err(UringBearerError::Slabbable)
     }
     /// Destroy earlier created buffer-set by it's index.
-    pub fn destroy_buffers(&mut self, id: usize) -> Result<(), UringHandlerError> {
+    pub fn destroy_buffers(&mut self, id: usize) -> Result<(), UringBearerError> {
         match self.bufs.slot_get_ref(id) {
             Ok(Some(itm)) => match itm.owner() {
-                Owner::Kernel => Err(UringHandlerError::BufferNoOwnership(id)),
+                Owner::Kernel => Err(UringBearerError::BufferNoOwnership(id)),
                 _ => {
                     self.bufs
                         .mark_for_reuse(id)
-                        .map_err(UringHandlerError::Slabbable)?;
+                        .map_err(UringBearerError::Slabbable)?;
                     Ok(())
                 }
             },
-            Ok(None) => Err(UringHandlerError::BufferNotExist(id)),
-            Err(e) => Err(UringHandlerError::Slabbable(e)),
+            Ok(None) => Err(UringBearerError::BufferNotExist(id)),
+            Err(e) => Err(UringBearerError::Slabbable(e)),
         }
     }
     /// Provide earlier created buffer-set by it's index to Kernel
@@ -133,14 +134,14 @@ impl UringHandler {
         created_buf_idx: usize,
         bgid: u16,
         bid: u16,
-    ) -> Result<usize, UringHandlerError> {
+    ) -> Result<usize, UringBearerError> {
         let bufs_rec_ref = match self.bufs.slot_get_mut(created_buf_idx) {
-            Err(e) => return Err(UringHandlerError::Slabbable(e)),
+            Err(e) => return Err(UringBearerError::Slabbable(e)),
             Ok(Some(ret)) => match ret.owner() {
-                Owner::Kernel => return Err(UringHandlerError::BufferNoOwnership(created_buf_idx)),
+                Owner::Kernel => return Err(UringBearerError::BufferNoOwnership(created_buf_idx)),
                 _ => ret,
             },
-            Ok(None) => return Err(UringHandlerError::BufferNoOwnership(created_buf_idx)),
+            Ok(None) => return Err(UringBearerError::BufferNoOwnership(created_buf_idx)),
         };
 
         let key = self
@@ -148,11 +149,11 @@ impl UringHandler {
             .take_next_with(Completion::ProvideBuffers(
                 crate::slab::buffer::provide_buffer_rec(bgid, bid, bufs_rec_ref),
             ))
-            .map_err(UringHandlerError::Slabbable)?;
+            .map_err(UringBearerError::Slabbable)?;
         let completion_rec = self
             .fd_slab
             .slot_get_ref(key)
-            .map_err(UringHandlerError::Slabbable)?;
+            .map_err(UringBearerError::Slabbable)?;
 
         let iou = &mut self.io_uring;
         let mut s_queue = iou.submission();
@@ -162,7 +163,7 @@ impl UringHandler {
                 crate::slab::buffer::entry(provide_buffers_rec).user_data(key as u64)
             }
             _ => {
-                return Err(UringHandlerError::SlabBugSetGet(
+                return Err(UringBearerError::SlabBugSetGet(
                     "ProvideBuffers not found after set?",
                 ))
             }
@@ -175,7 +176,7 @@ impl UringHandler {
                 bufs_rec_ref.force_owner_kernel();
                 Ok(key)
             }
-            Err(_) => Err(UringHandlerError::SubmissionPush),
+            Err(_) => Err(UringBearerError::SubmissionPush),
         }
     }
 }

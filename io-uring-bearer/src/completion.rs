@@ -1,7 +1,7 @@
 //! Competion types
 
 use crate::slab::AcceptRec;
-use crate::slab::EpollRec;
+//use crate::slab::EpollRec;
 use crate::slab::FutexWaitRec;
 use crate::slab::ProvideBuffersRec;
 use crate::slab::SendZcRec;
@@ -10,9 +10,9 @@ use crate::Owner;
 
 /// Completion types                      
 #[derive(Clone, Debug)]
-pub enum Completion {
+pub enum Completion<C> {
     /// EpollCtl Completion               
-    EpollEvent(EpollRec),
+    //    EpollEvent(EpollRec),
     /// Accept Completion                 
     Accept(AcceptRec),
     /// Provide Buffers
@@ -25,9 +25,11 @@ pub enum Completion {
     RecvMulti(RecvMultiRec),
     /// SendZc
     SendZc(SendZcRec),
+    /// Trait impl
+    Op(C),
 }
 
-impl Completion {
+impl<C> Completion<C> {
     #[inline]
     pub(crate) fn entry(&self) -> io_uring::squeue::Entry {
         match self {

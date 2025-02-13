@@ -1,0 +1,24 @@
+[package]
+name = "io-uring-probe"
+version = "0.2.0"
+edition = "2021"
+description = "When your io_uring meets your epoll"
+homepage = "https://github.com/yaws-rs/io_uring-utils/tree/main/io-uring-epoll"
+keywords = ["io", "uring", "epoll", "async"]
+license = "Apache-2.0/MIT"
+readme = "README.md"
+repository = "https://github.com/yaws-rs/io_uring-utils/tree/main/io-uring-epoll"
+categories = ["science"]
+
+[dependencies]
+hashbrown = "0.15.2"
+io-uring = { version = "0.7" }
+libc = { version = "0.2", features = ["extra_traits"] }
+nohash-hasher = "0.2.0"
+slab = { version = "0.4" }
+slabbable = { version = "0.1", path = "../../edifice/slabbable" }
+#slabbable-slab = { version = "0.1", path = "../edifice/slabbable-impls/slabbable-slab" }
+slabbable-impl-selector = { version = "0.1", path = "../../edifice/slabbable-impl-selector" }
+
+[features]
+default = []

@@ -1,19 +1,19 @@
 //! Register API surface for registering fixed Buffers, filehandles etc.
 
-use super::UringHandler;
-use crate::fd::{FdKind, RegisteredFd};
-use crate::uring::UringHandlerError;
+use super::UringBearer;
+use io_uring_fd::{FdKind, RegisteredFd};
+//use crate::fd::{FdKind, RegisteredFd};
+use crate::uring::UringBearerError;
 use crate::RawFd;
+use io_uring_opcode::OpCompletion;
 
-impl UringHandler {
+impl<C: core::fmt::Debug + Clone + OpCompletion> UringBearer<C> {
     // TODO: keep track of the FdKind and morph it between different types maybe
     //       Acceptor should not become Send/Recv and RecvSend shold become Recv once all Sent .. maybe?
-    pub(crate) fn add_registered_fd(
-        &mut self,
-        reg_fd: RegisteredFd,
-    ) -> Result<u32, UringHandlerError> {
+    /// Add registered filehandle
+    pub fn add_registered_fd(&mut self, reg_fd: RegisteredFd) -> Result<u32, UringBearerError> {
         if self.fd_register.len() == self.fd_register.capacity() {
-            return Err(UringHandlerError::FdRegisterFull);
+            return Err(UringBearerError::FdRegisterFull);
         }
         let entry = self.fd_register.vacant_entry();
         let key = entry.key() as u32;
@@ -21,18 +21,18 @@ impl UringHandler {
         Ok(key)
     }
     /// Register Recv handle
-    pub fn register_recv(&mut self, fd: RawFd) -> Result<u32, UringHandlerError> {
+    pub fn register_recv(&mut self, fd: RawFd) -> Result<u32, UringBearerError> {
         self.add_registered_fd(RegisteredFd::from_raw(fd, FdKind::Recv))
     }
     /// Register Acceptor handle
-    pub fn register_acceptor(&mut self, fd: RawFd) -> Result<u32, UringHandlerError> {
+    pub fn register_acceptor(&mut self, fd: RawFd) -> Result<u32, UringBearerError> {
         self.add_registered_fd(RegisteredFd::from_raw(fd, FdKind::Acceptor))
     }
     /// Sparse Commit of one rgistered handle
-    pub fn commit_registered_sparse(&mut self, key: u32) -> Result<(), UringHandlerError> {
+    pub fn commit_registered_sparse(&mut self, key: u32) -> Result<(), UringBearerError> {
         let raw_fd = match self.fd_register.get(key) {
             Some(&(_, RegisteredFd { raw_fd, .. })) => raw_fd,
-            _ => return Err(UringHandlerError::FdNotRegistered(key)),
+            _ => return Err(UringBearerError::FdNotRegistered(key)),
         };
         match self
             .io_uring()
@@ -41,7 +41,7 @@ impl UringHandler {
         {
             Ok(_) => Ok(()),
             // TODO: This looks like it's infallible but..?
-            Err(_) => Err(UringHandlerError::FdRegisterFail),
+            Err(_) => Err(UringBearerError::FdRegisterFail),
         }
     }
     /// Commit the full table of currently registered and free capacity into the kernel.
@@ -49,7 +49,7 @@ impl UringHandler {
     /// # Warning
     ///
     /// Generally make sure the queues are / can go empty before calling this.
-    pub fn commit_registered_init(&mut self) -> Result<(), UringHandlerError> {
+    pub fn commit_registered_init(&mut self) -> Result<(), UringBearerError> {
         let iou = &mut self.io_uring;
         let submitter = iou.submitter();
 
@@ -66,7 +66,7 @@ impl UringHandler {
 
         submitter
             .register_files(slice_i32)
-            .map_err(|e| UringHandlerError::RegisterHandles(e.to_string()))?;
+            .map_err(|e| UringBearerError::RegisterHandles(e.to_string()))?;
 
         Ok(())
     }
