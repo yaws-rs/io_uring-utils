@@ -15,13 +15,19 @@ mod error;
 pub use error::*;
 
 //-----------------------------------------------
+// EpollCtl Record Types
+//-----------------------------------------------
+mod epoll_ctl;
+pub use epoll_ctl::{EpollCtl, EpollOpKind};
+
+//-----------------------------------------------
 // Filehandle types
 //-----------------------------------------------
 pub(crate) mod handled_fd;
 pub use handled_fd::HandledFd;
 
 //-----------------------------------------------
-// Epoll Uring Handler -> EpollCtl within Uring
+// Epoll Uring Handler associating the bearer
 //-----------------------------------------------
 mod epoll_uring;
 #[doc(inline)]

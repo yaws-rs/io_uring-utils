@@ -5,6 +5,8 @@
 use core::pin::Pin;
 use io_uring_owner::Owner;
 
+use crate::OpError;
+
 /// Pending Completion type implemented by the OpCode handlers.
 pub trait OpCompletion {
     /// It is recommended that you use a harmonized error type but is not mandatory.
@@ -21,10 +23,9 @@ pub trait OpCompletion {
 /// Implement this type in the individual opcodes that can be used in the bearer.
 pub trait OpCode<C: OpCompletion> {
     /// It is recommended that you use a harmonized error type but is not mandatory.
-    type Error;
-    /// Turn the abstract OpCoe into Submission that will be pending completion.
-    /// io-uring-bearer will call this in order to convert the higher level type into actual submission.
-    fn submission(&mut self) -> Result<C, Self::Error>;
+    // Turn the abstract OpCoe into Submission that will be pending completion.
+    // io-uring-bearer will call this in order to convert the higher level type into actual submission.
+    fn submission(self) -> Result<C, OpError>;
     /// io-uring-bearer will call this upno completion
-    fn completion(&mut self, _: Pin<&mut C>) -> Result<(), Self::Error>;
+    fn completion(&mut self, _: Pin<&mut C>) -> Result<(), OpError>;
 }

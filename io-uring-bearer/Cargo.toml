@@ -1,6 +1,6 @@
 [package]
 name = "io-uring-bearer"
-version = "0.1.0"
+version = "0.0.1-pre0"
 edition = "2021"
 description = "io_uring bearer"
 homepage = "https://github.com/yaws-rs/io_uring-utils"
@@ -19,8 +19,9 @@ nohash-hasher = "0.2.0"
 slab = { version = "0.4" }
 slabbable = { version = "0.1", path = "../../edifice/slabbable" }
 slabbable-impl-selector = { version = "0.1", path = "../../edifice/slabbable-impl-selector" }
-io-uring-opcode = { version = "0.1", path = "../io-uring-opcode" }
-io-uring-fd = { version = "0.1", path = "../io-uring-fd" }
+io-uring-opcode = { version = "0.0.1-pre0", path = "../io-uring-opcode" }
+io-uring-fd = { version = "0.0.1-pre0", path = "../io-uring-fd" }
+io-uring-owner = { version = "0.0.1-pre0", path = "../io-uring-owner" }
 
 [features]
 default = []

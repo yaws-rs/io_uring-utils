@@ -12,11 +12,13 @@ categories = ["science"]
 
 [dependencies]
 #hashbrown = "0.15.2"
-#io-uring = { version = "0.7" }
+io-uring = { version = "0.7" }
 libc = { version = "0.2", features = ["extra_traits"] }
-io-uring-opcode = { version = "0.1", path = "../io-uring-opcode" }
-io-uring-bearer = { version = "0.1", path = "../io-uring-bearer" }
-io-uring-fd = { version = "0.1", path = "../io-uring-fd" }
+io-uring-opcode = { version = "0.0.1-pre0", path = "../io-uring-opcode" }
+io-uring-bearer = { version = "0.0.1-pre0", path = "../io-uring-bearer" }
+io-uring-fd = { version = "0.0.1-pre0", path = "../io-uring-fd" }
+io-uring-owner = { version = "0.0.1-pre0", path = "../io-uring-owner" }
+capacity = "0.1.2"
 #nohash-hasher = "0.2.0"
 #slab = { version = "0.4" }
 #slabbable = { version = "0.1", path = "../../edifice/slabbable" }

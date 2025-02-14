@@ -5,6 +5,16 @@ use core::fmt::Display;
 
 use io_uring_bearer::error::UringBearerError;
 
+/// EpollCtl Errors
+#[derive(Debug)]
+pub enum EpollCtlError {}
+
+impl Display for EpollCtlError {
+    fn fmt(&self, _: &mut fmt::Formatter<'_>) -> fmt::Result {
+        todo!()
+    }
+}
+
 /// EpollHandler Errors
 #[derive(Debug)]
 pub enum EpollHandlerError {
@@ -51,5 +61,6 @@ impl Display for EpollUringHandlerError {
     }
 }
 
+impl std::error::Error for EpollCtlError {}
 impl std::error::Error for EpollUringHandlerError {}
 impl std::error::Error for EpollHandlerError {}
