@@ -25,3 +25,4 @@ io-uring-owner = { version = "0.0.1-pre0", path = "../io-uring-owner" }
 
 [features]
 default = []
+epoll = ["io-uring-opcode/epoll"]

@@ -23,14 +23,16 @@ pub enum Owner {
     /// Record was created (default)
     #[default]
     Created,
+    /// Registered (e.g. via ProvideBuffers)
+    Registered,
+    /// User is filling the created buffer
+    Filling,
     /// Taken is owned intermediately internally before used
     Taken,
     /// Record is owned by the Kernel
     Kernel,
     /// Record is returned to the user(space)
-    User,
-    /// Kernel and Userspace may share / split ownership e.g. in case of RecvMulti
-    SharedMulti,
+    Returned,
     /// Record is marked for re-use (e.g. expensive allocation)
     /// Typical user: BufferRec
     Reusable,
@@ -42,10 +44,11 @@ impl Owner {
     pub fn take(&mut self) -> Result<(), TakeError> {
         let r = match self {
             Owner::Created => Ok(()),
+            Owner::Registered => Ok(()),
+            Owner::Filling => Err(TakeError::PendingFilling),
             Owner::Taken => Err(TakeError::AlreadyTaken),
             Owner::Kernel => Err(TakeError::KernelOwns),
-            Owner::User => Err(TakeError::UserOwns),
-            Owner::SharedMulti => Err(TakeError::SharedMulti),
+            Owner::Returned => Err(TakeError::Returned),
             Owner::Reusable => Ok(()),
         };
         match r {
@@ -62,10 +65,11 @@ impl Display for Owner {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Created => write!(f, "Created"),
+            Self::Registered => write!(f, "Registered"),
+            Self::Filling => write!(f, "Filling"),
             Self::Taken => write!(f, "Taken"),
             Self::Kernel => write!(f, "Kernel"),
-            Self::User => write!(f, "User"),
-            Self::SharedMulti => write!(f, "Sharedulti"),
+            Self::Returned => write!(f, "Returned"),
             Self::Reusable => write!(f, "Reusable"),
         }
     }

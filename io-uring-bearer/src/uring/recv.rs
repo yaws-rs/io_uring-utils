@@ -21,7 +21,7 @@ impl<C: core::fmt::Debug + Clone + OpCompletion> UringBearer<C> {
             .take_next_with(Completion::Recv(RecvRec::new(fixed_fd as u32, taken_buf)))
             .map_err(UringBearerError::Slabbable)?;
 
-        self.push_completion(key)?;
+        self._push_to_completion(key)?;
         Ok(key)
     }
     /// Add RecvMulti pending Completion
@@ -41,7 +41,7 @@ impl<C: core::fmt::Debug + Clone + OpCompletion> UringBearer<C> {
             )))
             .map_err(UringBearerError::Slabbable)?;
 
-        self.push_completion(key)?;
+        self._push_to_completion(key)?;
         Ok(key)
     }
 }

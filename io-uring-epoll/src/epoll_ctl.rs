@@ -7,6 +7,7 @@ use crate::error::EpollCtlError;
 use crate::HandledFd;
 use crate::RawFd;
 
+use io_uring_opcode::OpExtEpollCtl;
 use io_uring_opcode::{OpCode, OpCompletion, OpError};
 use io_uring_owner::Owner;
 
@@ -97,13 +98,13 @@ impl OpCode<EpollCtl> for EpollCtl {
     }
 }
 
-impl EpollCtl {
+impl OpExtEpollCtl for EpollCtl {
     /// Underlying RawFd
-    pub fn fd(&self) -> RawFd {
+    fn raw_fd(&self) -> RawFd {
         self.fd
     }
     /// Underlying libc::eooll_event
-    pub fn ev(&self) -> libc::epoll_event {
-        self.ev
+    fn ev(&self) -> &libc::epoll_event {
+        &self.ev
     }
 }
