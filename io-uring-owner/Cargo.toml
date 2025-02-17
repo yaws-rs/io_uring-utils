@@ -1,6 +1,6 @@
 [package]
 name = "io-uring-owner"
-version = "0.0.1-pre0"
+version = "0.2.0-pre1"
 edition = "2021"
 description = "io_uring owner type for the ownership management"
 homepage = "https://github.com/yaws-rs/io_uring-utils"

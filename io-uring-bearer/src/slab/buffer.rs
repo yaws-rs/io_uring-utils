@@ -19,7 +19,7 @@ pub struct BuffersRec {
 impl BuffersRec {
     /// Take the buffer for filling it.
     pub(crate) unsafe fn take_for_filling(&mut self) -> Pin<&mut Vec<u8>> {
-        std::pin::Pin::new(&mut self.all_bufs)
+        Pin::new(&mut self.all_bufs)
     }
     /// Typically you do not use this directly but instead via provide_buffers that uses this.
     pub(crate) fn force_owner_kernel(&mut self) {
