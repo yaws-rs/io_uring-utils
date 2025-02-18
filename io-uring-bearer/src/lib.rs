@@ -41,13 +41,6 @@ pub mod completion;
 pub use completion::Completion;
 
 //-----------------------------------------------
-// Ownership / of long living records / types
-//-----------------------------------------------
-mod ownership;
-#[doc(inline)]
-pub use ownership::Owner;
-
-//-----------------------------------------------
 // Uring Handler -> Core Uring handler
 //-----------------------------------------------
 mod uring;

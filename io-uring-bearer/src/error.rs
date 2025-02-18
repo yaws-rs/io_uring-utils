@@ -1,13 +1,12 @@
 //! UringBearer Errors
 
-use crate::Owner;
+use io_uring_owner::{Owner, TakeError};
 
 use core::fmt;
 use core::fmt::Display;
 
-use std::error::Error;
-
 use slabbable::SlabbableError;
+use io_uring_opcode::OpError;
 
 /// Errors from the Uring Handler
 #[derive(Debug)]
@@ -51,6 +50,8 @@ pub enum UringBearerError {
     FdRegisterFull,
     /// Could not register filehandle.
     FdRegisterFail,
+    /// OpCode Error
+    Op(OpError),
 }
 
 impl Display for UringBearerError {
@@ -88,42 +89,16 @@ impl Display for UringBearerError {
                 "Map holding th registered filehandles is at capacity and cannot add more."
             ),
             Self::FdRegisterFail => write!(f, "Failed to register filehandle."),
+            Self::Op(e) => write!(f, "OpCode: {}", e),
         }
     }
 }
 
-/// Errors relating to taking (ownership)
-#[derive(Debug)]
-pub enum TakeError {
-    /// Already taken, typically internal error.
-    AlreadyTaken,
-    /// Kernel owns, cannot take.
-    KernelOwns,
-    /// User owns and must mark it for re-use first.
-    UserOwns,
-    /// Cannot take ownership of shared multi-ownership.
-    SharedMulti,
-    /// Cannot take multi-buffer-holder, requires one single buffer.
-    OnlyOneTakeable,
-}
-
-impl Display for TakeError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::AlreadyTaken => write!(f, "Kernel owns, cannot take."),
-            Self::KernelOwns => write!(
-                f,
-                "Kernel owns the buffer. Must be claered for re-use first."
-            ),
-            Self::UserOwns => write!(f, "User owns and must mark it for re-use first."),
-            Self::SharedMulti => write!(f, "Cannot take over shared multi-ownership."),
-            Self::OnlyOneTakeable => write!(
-                f,
-                "Cannot take multi-buffer-holder, requires one single buffer."
-            ),
-        }
+impl From<OpError> for UringBearerError {
+    fn from(e: OpError) -> UringBearerError {
+        UringBearerError::Op(e)
     }
 }
 
-impl Error for UringBearerError {}
-impl Error for TakeError {}
+impl std::error::Error for UringBearerError {}
+

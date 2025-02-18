@@ -6,7 +6,10 @@ use crate::slab::FutexWaitRec;
 use crate::slab::ProvideBuffersRec;
 use crate::slab::SendZcRec;
 use crate::slab::{RecvMultiRec, RecvRec};
-use crate::Owner;
+//use crate::Owner;
+use io_uring_owner::Owner;
+
+use io_uring_opcode::OpCompletion;
 
 /// Completion types                      
 #[derive(Clone, Debug)]
@@ -29,13 +32,14 @@ pub enum Completion<C> {
     Op(C),
 }
 
-impl<C> Completion<C> {
+impl<C: OpCompletion> Completion<C> {
     #[inline]
     pub(crate) fn entry(&self) -> io_uring::squeue::Entry {
         match self {
             Completion::Recv(r) => r.entry(),
             Completion::RecvMulti(r) => r.entry(),
             Completion::SendZc(r) => r.entry(),
+            Completion::Op(r) => r.entry(),
             _ => todo!(),
         }
     }
@@ -45,6 +49,7 @@ impl<C> Completion<C> {
             Self::Recv(ref recv) => recv.owner(),
             Self::RecvMulti(ref recv_multi) => recv_multi.owner(),
             Self::SendZc(ref send_zc) => send_zc.owner(),
+            Self::Op(ref impl_op) => impl_op.owner(),
             _ => todo!(),
         }
     }
@@ -54,6 +59,7 @@ impl<C> Completion<C> {
             Self::Recv(ref mut recv) => recv.force_owner_kernel(),
             Self::RecvMulti(ref mut recv_multi) => recv_multi.force_owner_kernel(),
             Self::SendZc(ref mut send_zc) => send_zc.force_owner_kernel(),
+            Self::Op(ref mut impl_op) => impl_op.force_owner_kernel(),
             _ => todo!(),
         }
     }

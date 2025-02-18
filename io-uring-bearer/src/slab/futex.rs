@@ -1,6 +1,6 @@
 //! Futex Slab Records
 
-use crate::Owner;
+use io_uring_owner::Owner;
 use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
 

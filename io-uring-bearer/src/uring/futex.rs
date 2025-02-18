@@ -2,7 +2,6 @@
 
 use crate::uring::UringBearerError;
 use crate::Completion;
-use crate::Owner;
 use crate::UringBearer;
 
 use std::sync::atomic::AtomicU32;
@@ -13,6 +12,7 @@ use crate::slab::futex::FutexRec;
 use slabbable::Slabbable;
 
 use io_uring_opcode::OpCompletion;
+use io_uring_owner::Owner;
 
 impl<C: core::fmt::Debug + Clone + OpCompletion> UringBearer<C> {
     /// UringBearer creates a new Futex Atomic and provides indexed key to it.

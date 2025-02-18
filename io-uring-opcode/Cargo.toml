@@ -1,6 +1,6 @@
 [package]
 name = "io-uring-opcode"
-version = "0.1.0"
+version = "0.0.1-pre0"
 edition = "2021"
 description = "io_uring opcode trait contract between bearer and opcodes"
 homepage = "https://github.com/yaws-rs/io_uring-utils"
@@ -12,7 +12,7 @@ categories = ["science"]
 
 [dependencies]
 io-uring = "0.7.4"
-io-uring-owner = { version = "0.1", path = "../io-uring-owner" }
+io-uring-owner = { version = "0.0.1-pre0", path = "../io-uring-owner" }
 
 [features]
 default = []

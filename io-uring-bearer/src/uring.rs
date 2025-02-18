@@ -17,7 +17,7 @@ use crate::fixed::FixedFdRegister;
 use crate::slab::BuffersRec;
 use crate::slab::FutexRec;
 use crate::Completion;
-use crate::Owner;
+use io_uring_owner::Owner;
 
 use io_uring_opcode::{OpCode, OpCompletion};
 use slabbable::Slabbable;
@@ -50,7 +50,7 @@ impl<C: core::fmt::Debug + Clone + OpCompletion> UringBearer<C> {
     ///
     /// UringBearer::new(16, 16, 16, 16, 16).expect("Unable to create EPoll Handler");
     /// ```    
-    pub fn new<H: CapacitySetting<BearerCapacityKind>>(
+    pub fn with_capacity<H: CapacitySetting<BearerCapacityKind>>(
         caps: Capacity<H, BearerCapacityKind>,
     ) -> Result<Self, UringBearerError> {
         let iou: IoUring<io_uring::squeue::Entry, io_uring::cqueue::Entry> = IoUring::builder()
@@ -168,13 +168,11 @@ impl<C: core::fmt::Debug + Clone + OpCompletion> UringBearer<C> {
     }
     /// Register Filehandle
     /// Push an op implementing OpCode trait (see io-uring-opcode)
-    pub fn push_op<Op: OpCode<C>>(&mut self, mut op: Op) -> Result<usize, UringBearerError>
-    where
-        <Op as OpCode<C>>::Error: core::fmt::Debug,
+    pub fn push_op<Op: OpCode<C>>(&mut self, op: Op) -> Result<usize, UringBearerError>
     {
         let key = self
             .fd_slab
-            .take_next_with(Completion::Op(op.submission().unwrap())) // TODO error type
+            .take_next_with(Completion::Op(op.submission()?)) // TODO error type
             .map_err(UringBearerError::Slabbable)?;
 
         match self.push_completion(key) {

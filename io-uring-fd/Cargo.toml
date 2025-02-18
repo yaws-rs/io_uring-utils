@@ -1,6 +1,6 @@
 [package]
 name = "io-uring-fd"
-version = "0.1.0"
+version = "0.0.1-pre0"
 edition = "2021"
 description = "io_uring filehandle types"
 homepage = "https://github.com/yaws-rs/io_uring-utils"

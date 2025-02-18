@@ -1,7 +1,6 @@
 //! ProvideBuffers Slab Record
 
-use crate::error::TakeError;
-use crate::Owner;
+use io_uring_owner::{Owner, TakeError};
 
 use std::marker::PhantomPinned;
 

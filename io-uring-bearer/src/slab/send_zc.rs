@@ -1,6 +1,6 @@
 //! SendZc Slab records
 
-use crate::Owner;
+use io_uring_owner::Owner;
 
 use crate::slab::buffer::TakenImmutableBuffer;
 

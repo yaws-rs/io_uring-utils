@@ -68,13 +68,14 @@ dependencies = [
 
 [[package]]
 name = "io-uring-bearer"
-version = "0.1.0"
+version = "0.0.1-pre0"
 dependencies = [
  "capacity",
  "hashbrown",
  "io-uring",
  "io-uring-fd",
  "io-uring-opcode",
+ "io-uring-owner",
  "libc",
  "nohash-hasher",
  "slab",
@@ -86,19 +87,22 @@ dependencies = [
 name = "io-uring-epoll"
 version = "0.2.0"
 dependencies = [
+ "capacity",
+ "io-uring",
  "io-uring-bearer",
  "io-uring-fd",
  "io-uring-opcode",
+ "io-uring-owner",
  "libc",
 ]
 
 [[package]]
 name = "io-uring-fd"
-version = "0.1.0"
+version = "0.0.1-pre0"
 
 [[package]]
 name = "io-uring-opcode"
-version = "0.1.0"
+version = "0.0.1-pre0"
 dependencies = [
  "io-uring",
  "io-uring-owner",
@@ -106,7 +110,7 @@ dependencies = [
 
 [[package]]
 name = "io-uring-owner"
-version = "0.1.0"
+version = "0.0.1-pre0"
 
 [[package]]
 name = "libc"

@@ -2,9 +2,10 @@
 
 use crate::uring::UringBearerError;
 use crate::Completion;
-use crate::Owner;
+
 use crate::UringBearer;
 
+use io_uring_owner::Owner;
 use slabbable::Slabbable;
 
 use std::num::NonZero;
