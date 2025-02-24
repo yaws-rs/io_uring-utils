@@ -13,6 +13,8 @@ categories = ["science"]
 [dependencies]
 io-uring = "0.7.4"
 io-uring-owner = { version = "0.0.1-pre0", path = "../io-uring-owner" }
+libc = "0.2.169"
 
 [features]
 default = []
+epoll = []

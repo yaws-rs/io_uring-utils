@@ -7,6 +7,9 @@ mod recv;
 mod register;
 mod send_zc;
 
+#[cfg(feature = "epoll")]
+mod epoll_ctl;
+
 use crate::error::UringBearerError;
 
 use io_uring::IoUring;
@@ -166,22 +169,32 @@ impl<C: core::fmt::Debug + Clone + OpCompletion> UringBearer<C> {
             .submit_and_wait(want)
             .map_err(|e| UringBearerError::Submission(e.to_string()))
     }
-    /// Register Filehandle
-    /// Push an op implementing OpCode trait (see io-uring-opcode)
-    pub fn push_op<Op: OpCode<C>>(&mut self, op: Op) -> Result<usize, UringBearerError>
-    {
+    /// Push a general Op implementing OpCode trait (see io-uring-opcode)
+    pub fn push_op<Op: OpCode<C>>(&mut self, op: Op) -> Result<usize, UringBearerError> {
         let key = self
             .fd_slab
-            .take_next_with(Completion::Op(op.submission()?)) // TODO error type
+            .take_next_with(Completion::Op(op.submission()?))
             .map_err(UringBearerError::Slabbable)?;
 
-        match self.push_completion(key) {
+        match self._push_to_completion(key) {
+            Err(e) => Err(e),
+            Ok(()) => Ok(key),
+        }
+    }
+    /// Push a pending typed Completion directly
+    pub fn push_op_typed(&mut self, op: Completion<C>) -> Result<usize, UringBearerError> {
+        let key = self
+            .fd_slab
+            .take_next_with(op)
+            .map_err(UringBearerError::Slabbable)?;
+
+        match self._push_to_completion(key) {
             Err(e) => Err(e),
             Ok(()) => Ok(key),
         }
     }
     #[inline]
-    pub(crate) fn push_completion(&mut self, idx: usize) -> Result<(), UringBearerError> {
+    pub(crate) fn _push_to_completion(&mut self, idx: usize) -> Result<(), UringBearerError> {
         let iou = &mut self.io_uring;
         let mut s_queue = iou.submission();
 

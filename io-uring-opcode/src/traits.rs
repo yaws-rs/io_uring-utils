@@ -2,6 +2,11 @@
 //! individual io_uring OpCode handlers which are sepated into different
 //! crates.
 
+#[cfg(feature = "epoll")]
+mod epoll_ctl;
+#[cfg(feature = "epoll")]
+pub use epoll_ctl::OpExtEpollCtl;
+
 use core::pin::Pin;
 use io_uring_owner::Owner;
 

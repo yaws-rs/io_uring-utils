@@ -3,11 +3,12 @@
 use io_uring_owner::{Owner, TakeError};
 
 use std::marker::PhantomPinned;
+use std::pin::Pin;
 
 /// Holds the actual allocation for the Buffers that either owned by the Kernel or Userspace.
 #[derive(Clone, Debug)]
 pub struct BuffersRec {
-    owner: Owner,
+    pub(crate) owner: Owner,
     all_bufs: Vec<u8>,
     len_per_buf: i32,
     num_bufs: u16,
@@ -16,6 +17,10 @@ pub struct BuffersRec {
 }
 
 impl BuffersRec {
+    /// Take the buffer for filling it.
+    pub(crate) unsafe fn take_for_filling(&mut self) -> Pin<&mut Vec<u8>> {
+        std::pin::Pin::new(&mut self.all_bufs)
+    }
     /// Typically you do not use this directly but instead via provide_buffers that uses this.
     pub(crate) fn force_owner_kernel(&mut self) {
         self.owner = Owner::Kernel;
@@ -62,11 +67,19 @@ pub(crate) fn construct_buffer(owner: Owner, len_per_buf: i32, num_bufs: u16) ->
 /// This can be dropped immediately after completion as BufferRec is separated.
 #[derive(Clone, Debug)]
 pub struct ProvideBuffersRec {
+    slab_idx: Option<usize>,
     buf: *mut u8,
     len_per_buf: i32,
     num_bufs: u16,
     bgid: u16,
     bid: u16,
+}
+
+impl ProvideBuffersRec {
+    /// SLab index
+    pub fn slab_idx(&self) -> Option<usize> {
+        self.slab_idx
+    }
 }
 
 /// Mutable Buffer is taken by something, let's provide it intermediate type.  
@@ -121,8 +134,14 @@ pub(crate) fn take_one_immutable_buffer_raw(
 }
 
 #[inline]
-pub(crate) fn provide_buffer_rec(bgid: u16, bid: u16, buf: &mut BuffersRec) -> ProvideBuffersRec {
+pub(crate) fn provide_buffer_rec(
+    bgid: u16,
+    bid: u16,
+    buf: &mut BuffersRec,
+    slab_idx: Option<usize>,
+) -> ProvideBuffersRec {
     ProvideBuffersRec {
+        slab_idx,
         buf: buf.all_bufs.as_mut_ptr(),
         len_per_buf: buf.len_per_buf,
         num_bufs: buf.num_bufs,

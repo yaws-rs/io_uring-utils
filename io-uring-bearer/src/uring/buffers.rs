@@ -9,6 +9,7 @@ use io_uring_owner::Owner;
 use slabbable::Slabbable;
 
 use std::num::NonZero;
+use std::pin::Pin;
 
 use crate::slab::buffer::{TakenImmutableBuffer, TakenMutableBuffer};
 use io_uring_opcode::OpCompletion;
@@ -129,6 +130,38 @@ impl<C: core::fmt::Debug + Clone + OpCompletion> UringBearer<C> {
             Err(e) => Err(UringBearerError::Slabbable(e)),
         }
     }
+    /// Prepares Buffer for filling and provides a mutable reference into it.
+    pub fn buffer_prepare_fill(
+        &mut self,
+        created_buf_idx: usize,
+    ) -> Result<Pin<&mut Vec<u8>>, UringBearerError> {
+        let bufs_rec_ref = match self.bufs.slot_get_mut(created_buf_idx) {
+            Err(e) => return Err(UringBearerError::Slabbable(e)),
+            Ok(Some(ret)) => match ret.owner() {
+                Owner::Created | Owner::Registered => ret,
+                _ => return Err(UringBearerError::BufferNoOwnership(created_buf_idx)),
+            },
+            Ok(None) => return Err(UringBearerError::BufferNoOwnership(created_buf_idx)),
+        };
+
+        Ok(unsafe { bufs_rec_ref.take_for_filling() })
+    }
+    /// Upon ProvideBuffers completion, mark buffer by index registered
+    pub unsafe fn buffer_set_registered(
+        &mut self,
+        created_buf_idx: usize,
+    ) -> Result<(), UringBearerError> {
+        let bufs_rec_ref = match self.bufs.slot_get_mut(created_buf_idx) {
+            Err(e) => return Err(UringBearerError::Slabbable(e)),
+            Ok(Some(ret)) => match ret.owner() {
+                Owner::Kernel => ret,
+                _ => return Err(UringBearerError::BufferNotKernelOwned(created_buf_idx)),
+            },
+            Ok(None) => return Err(UringBearerError::BufferNoOwnership(created_buf_idx)),
+        };
+        bufs_rec_ref.owner = Owner::Registered;
+        Ok(())
+    }
     /// Provide earlier created buffer-set by it's index to Kernel
     pub fn provide_buffers(
         &mut self,
@@ -148,7 +181,12 @@ impl<C: core::fmt::Debug + Clone + OpCompletion> UringBearer<C> {
         let key = self
             .fd_slab
             .take_next_with(Completion::ProvideBuffers(
-                crate::slab::buffer::provide_buffer_rec(bgid, bid, bufs_rec_ref),
+                crate::slab::buffer::provide_buffer_rec(
+                    bgid,
+                    bid,
+                    bufs_rec_ref,
+                    Some(created_buf_idx),
+                ),
             ))
             .map_err(UringBearerError::Slabbable)?;
         let completion_rec = self

@@ -5,8 +5,8 @@ use io_uring_owner::{Owner, TakeError};
 use core::fmt;
 use core::fmt::Display;
 
-use slabbable::SlabbableError;
 use io_uring_opcode::OpError;
+use slabbable::SlabbableError;
 
 /// Errors from the Uring Handler
 #[derive(Debug)]
@@ -38,6 +38,8 @@ pub enum UringBearerError {
     BufferSelectedNotExist(u16),
     /// Cannot take Buffer
     BufferTake(TakeError),
+    /// Buffers are not owned by Kernel.
+    BufferNotKernelOwned(usize),
     /// Cannot directly destroy futex atomics that are currently owned by the kernel. Use cancel_futex instead.
     FutexNoOwnership(usize),
     /// Futex Atomic does not exist.
@@ -72,6 +74,9 @@ impl Display for UringBearerError {
             ),
             Self::BufferNoOwnership(idx) => write!(f, "Buffer {} in invalid ownership state", idx),
             Self::BufferNotExist(idx) => write!(f, "Buffer {} does not exist.", idx),
+            Self::BufferNotKernelOwned(idx) => {
+                write!(f, "Buffer {} is not owned by the kernel.", idx)
+            }
             Self::BufferSelectedNotExist(sel_idx) => write!(
                 f,
                 "Selected {} does not exist within the given buffer.",
@@ -101,4 +106,3 @@ impl From<OpError> for UringBearerError {
 }
 
 impl std::error::Error for UringBearerError {}
-
