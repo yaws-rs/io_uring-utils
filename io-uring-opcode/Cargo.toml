@@ -17,7 +17,8 @@ libc = "0.2.169"
 
 [features]
 default = []
+connect = []
 epoll = []
 
 [package.metadata.docs.rs]
-features = ["epoll"]
+features = ["connect", "epoll"]

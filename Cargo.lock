@@ -101,6 +101,20 @@ name = "io-uring-fd"
 version = "0.2.0-pre1"
 
 [[package]]
+name = "io-uring-op-connect"
+version = "0.0.1"
+dependencies = [
+ "capacity",
+ "io-uring",
+ "io-uring-bearer",
+ "io-uring-fd",
+ "io-uring-opcode",
+ "io-uring-owner",
+ "libc",
+ "ysockaddr",
+]
+
+[[package]]
 name = "io-uring-opcode"
 version = "0.2.0-pre2"
 dependencies = [
@@ -186,4 +200,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d1dff32a2ce087283bec878419027cebd888760d8760b2941ad0843531dc9ec8"
 dependencies = [
  "no-std-compat",
+]
+
+[[package]]
+name = "ysockaddr"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f0ffdfce5604de055884295a888f8476ef30c6ccf13dea0e45f06a7350be54ee"
+dependencies = [
+ "libc",
 ]
