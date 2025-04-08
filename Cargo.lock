@@ -68,7 +68,7 @@ dependencies = [
 
 [[package]]
 name = "io-uring-bearer"
-version = "0.2.0-pre1"
+version = "0.2.0-pre2"
 dependencies = [
  "capacity",
  "hashbrown",
@@ -102,7 +102,7 @@ version = "0.2.0-pre1"
 
 [[package]]
 name = "io-uring-opcode"
-version = "0.2.0-pre1"
+version = "0.2.0-pre2"
 dependencies = [
  "io-uring",
  "io-uring-owner",

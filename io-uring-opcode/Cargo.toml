@@ -1,6 +1,6 @@
 [package]
 name = "io-uring-opcode"
-version = "0.2.0-pre1"
+version = "0.2.0-pre2"
 edition = "2021"
 description = "io_uring opcode trait contract between bearer and opcodes"
 homepage = "https://github.com/yaws-rs/io_uring-utils"
@@ -18,3 +18,6 @@ libc = "0.2.169"
 [features]
 default = []
 epoll = []
+
+[package.metadata.docs.rs]
+features = ["epoll"]
