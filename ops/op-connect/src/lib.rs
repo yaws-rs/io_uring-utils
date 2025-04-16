@@ -23,4 +23,4 @@ pub use connect::Connect;
 //-----------------------------------------------
 // Misc crate-wide private types
 //-----------------------------------------------
-pub(crate) use std::os::fd::RawFd;
+

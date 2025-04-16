@@ -121,6 +121,7 @@ dependencies = [
  "io-uring",
  "io-uring-owner",
  "libc",
+ "ysockaddr",
 ]
 
 [[package]]
@@ -204,9 +205,7 @@ dependencies = [
 
 [[package]]
 name = "ysockaddr"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f0ffdfce5604de055884295a888f8476ef30c6ccf13dea0e45f06a7350be54ee"
+version = "0.2.0"
 dependencies = [
  "libc",
 ]

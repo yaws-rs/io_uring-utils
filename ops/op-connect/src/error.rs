@@ -3,8 +3,6 @@
 use core::fmt;
 use core::fmt::Display;
 
-use io_uring_bearer::error::UringBearerError;
-
 /// Connect Errors
 #[derive(Debug)]
 pub enum ConnectError {}

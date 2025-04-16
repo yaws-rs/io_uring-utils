@@ -4,9 +4,6 @@ use core::pin::Pin;
 
 use crate::error::ConnectError;
 
-use crate::HandledFd;
-use crate::RawFd;
-
 use io_uring_opcode::OpExtConnect;
 use io_uring_opcode::{OpCode, OpCompletion, OpError};
 use io_uring_owner::Owner;
@@ -14,20 +11,22 @@ use io_uring_owner::Owner;
 use ysockaddr::YSockAddrC;
 
 /// Connect Record
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct Connect {
     /// Current owner of the record
     owner: Owner,
     /// Related filehandle
-    fd: RawFd,
+    fixed_fd: u32,
+    ysaddr: YSockAddrC,
 }
 
 impl Connect {
     /// Construct a new Connect
-    pub fn with_ysockaddr_c(ysaddr: YSockAddrC) -> Result<Self, ConnectError> {
+    pub fn with_ysockaddr_c(fixed_fd: u32, ysaddr: YSockAddrC) -> Result<Self, ConnectError> {
         Ok(Connect {
             owner: Owner::Created,
-            fd: create_new_fd,
+            fixed_fd,
+            ysaddr,
         })
     }
 }
@@ -35,11 +34,15 @@ impl Connect {
 impl OpCompletion for Connect {
     type Error = OpError;
     fn entry(&self) -> io_uring::squeue::Entry {
+        let (saddr, slen) = self.ysaddr.as_c_sockaddr_len();
+
+        println!("OpCompletion entry() saddr = {:p}, slen = {}", saddr, slen);
+        
         io_uring::opcode::Connect::new(
-            io_uring::types::Fixed(self.epfd as u32),
-            io_uring::types::Fd(self.fd),
-        )
-        .build()
+            io_uring::types::Fixed(self.fixed_fd),
+            saddr,
+            slen)
+            .build()
     }
     fn owner(&self) -> Owner {
         self.owner.clone()
@@ -50,7 +53,7 @@ impl OpCompletion for Connect {
     }
 }
 
-impl OpCode<EpollCtl> for Connect {
+impl OpCode<Connect> for Connect {
     fn submission(self) -> Result<Connect, OpError> {
         Ok(self)
     }
@@ -60,8 +63,12 @@ impl OpCode<EpollCtl> for Connect {
 }
 
 impl OpExtConnect for Connect {
-    /// Underlying RawFd
-    fn raw_fd(&self) -> RawFd {
-        self.fd
+    /// Underlying Fixed Fd
+    fn fixed_fd(&self) -> u32 {
+        self.fixed_fd
+    }
+    /// Underlying YSockAddrC
+    fn ysaddr(&self) -> &YSockAddrC {
+        &self.ysaddr
     }
 }

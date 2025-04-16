@@ -1,9 +1,11 @@
 //! Connect extension trait
 
+use ysockaddr::YSockAddrC;
+
 /// Connect Expansion trait
 pub trait OpExtConnect {
-    /// Underlying RawFd
-    fn raw_fd(&self) -> std::os::fd::RawFd;
-//    /// Underlying libc::eooll_event
-//    fn ev(&self) -> &libc::epoll_event;
+    /// Underlying Fixed Fd ref
+    fn fixed_fd(&self) -> u32;
+    /// Underlying YSockAddr
+    fn ysaddr(&self) -> &YSockAddrC;
 }
