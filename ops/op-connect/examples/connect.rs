@@ -1,6 +1,6 @@
+use std::net::TcpListener;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::os::fd::AsRawFd;
-use std::net::TcpListener;
 
 use ysockaddr::YSockAddrR;
 
@@ -29,7 +29,6 @@ impl Setting<BearerCapacityKind> for MyCapacity {
 }
 
 fn main() {
-
     // Bring up a listener
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     listener.set_nonblocking(true).unwrap();
@@ -44,17 +43,22 @@ fn main() {
     let my_cap = Capacity::<MyCapacity, BearerCapacityKind>::with_planned(MyCapacity {});
     let mut bearer = UringBearer::with_capacity(my_cap).unwrap();
 
-    let sock = unsafe { libc::socket(libc::AF_INET, libc::SOCK_STREAM, libc::IPPROTO_TCP ) };
-    bearer.io_uring().submitter().register_files(&[sock]).unwrap();
+    let sock = unsafe { libc::socket(libc::AF_INET, libc::SOCK_STREAM, libc::IPPROTO_TCP) };
+    bearer
+        .io_uring()
+        .submitter()
+        .register_files(&[sock])
+        .unwrap();
 
-    let ysaddr = YSockAddrR::from_sockaddr(
-        SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), listener_port)
-    );
+    let ysaddr = YSockAddrR::from_sockaddr(SocketAddr::new(
+        IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
+        listener_port,
+    ));
 
-    let _op_idx = bearer.push_connect(
-        Connect::with_ysockaddr_c(0, ysaddr.as_c()).unwrap()
-    ).unwrap();
-    
+    let _op_idx = bearer
+        .push_connect(Connect::with_ysockaddr_c(0, ysaddr.as_c()).unwrap())
+        .unwrap();
+
     bearer.submit_and_wait(1).unwrap();
 
     #[derive(Debug)]
@@ -64,13 +68,18 @@ fn main() {
 
     let mut user = UserData { e: 0 };
     let mut wait_count = 0;
-    
+
     loop {
         bearer
             .completions(&mut user, |user, entry, rec| match rec {
                 Completion::Connect(c) => {
                     user.e += 1;
-                    println!("Connected Q<{:?}> Fixed_fd<{}> ysaddr<{:?}", entry, c.fixed_fd(), c.ysaddr());
+                    println!(
+                        "Connected Q<{:?}> Fixed_fd<{}> ysaddr<{:?}",
+                        entry,
+                        c.fixed_fd(),
+                        c.ysaddr()
+                    );
                     // no error
                     assert_eq!(entry.result(), 0);
                 }
@@ -79,13 +88,13 @@ fn main() {
             .unwrap();
 
         if user.e != 0 {
-            break
+            break;
         }
 
         if wait_count > 4 {
             panic!("wait_count > 5 on Connect example.");
         }
-        
+
         wait_count += 1;
         println!("Waiting for the completion @ {wait_count} ..");
         let st = std::time::Duration::from_secs(1);
@@ -94,7 +103,11 @@ fn main() {
 
     // Now check that the listener got the connection.
     match listener.accept() {
-        Ok((in_s, in_a)) => println!("std TcpListener accepted {} from {}", in_s.as_raw_fd(), in_a),
+        Ok((in_s, in_a)) => println!(
+            "std TcpListener accepted {} from {}",
+            in_s.as_raw_fd(),
+            in_a
+        ),
         Err(e) => panic!("std TcpListener resulted in error = {e}"),
     }
 }

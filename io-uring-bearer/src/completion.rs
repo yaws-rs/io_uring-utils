@@ -30,7 +30,7 @@ pub enum Completion<C> {
     SendZc(SendZcRec),
     /// Gen + OpExtConnect impl
     #[cfg(feature = "connect")]
-    Connect(C),    
+    Connect(C),
     /// Gen + OpExtEpollCtl impl
     #[cfg(feature = "epoll")]
     EpollCtl(C),
@@ -47,7 +47,7 @@ impl<C: OpCompletion> Completion<C> {
             Completion::SendZc(r) => r.entry(),
             Completion::Op(r) => r.entry(),
             #[cfg(feature = "connect")]
-            Completion::Connect(r) => r.entry(),            
+            Completion::Connect(r) => r.entry(),
             #[cfg(feature = "epoll")]
             Completion::EpollCtl(r) => r.entry(),
             _ => todo!(),
@@ -61,7 +61,7 @@ impl<C: OpCompletion> Completion<C> {
             Self::SendZc(ref send_zc) => send_zc.owner(),
             Self::Op(ref impl_op) => impl_op.owner(),
             #[cfg(feature = "connect")]
-            Self::Connect(ref impl_op) => impl_op.owner(),            
+            Self::Connect(ref impl_op) => impl_op.owner(),
             #[cfg(feature = "epoll")]
             Self::EpollCtl(ref impl_op) => impl_op.owner(),
             _ => todo!(),
@@ -75,7 +75,7 @@ impl<C: OpCompletion> Completion<C> {
             Self::SendZc(ref mut send_zc) => send_zc.force_owner_kernel(),
             Self::Op(ref mut impl_op) => impl_op.force_owner_kernel(),
             #[cfg(feature = "connect")]
-            Self::Connect(ref mut impl_op) => impl_op.force_owner_kernel(),            
+            Self::Connect(ref mut impl_op) => impl_op.force_owner_kernel(),
             #[cfg(feature = "epoll")]
             Self::EpollCtl(ref mut impl_op) => impl_op.force_owner_kernel(),
             _ => todo!(),
