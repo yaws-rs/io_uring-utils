@@ -18,7 +18,7 @@ io-uring-bearer = { version = "0.2.0-pre1", path = "../../io-uring-bearer", feat
 io-uring-fd = { version = "0.2.0-pre1", path = "../../io-uring-fd" }
 io-uring-owner = { version = "0.2.0-pre1", path = "../../io-uring-owner" }
 capacity = "0.1.2"
-ysockaddr = { version = "0.2.0", path = "../../../ylibc/ysockaddr" }
+ysockaddr = { version = "0.2.0" }
 
 [features]
 default = []
