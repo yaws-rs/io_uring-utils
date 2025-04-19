@@ -116,7 +116,7 @@ dependencies = [
 
 [[package]]
 name = "io-uring-opcode"
-version = "0.2.0-pre2"
+version = "0.2.0-pre3"
 dependencies = [
  "io-uring",
  "io-uring-owner",
