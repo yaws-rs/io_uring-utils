@@ -68,7 +68,7 @@ dependencies = [
 
 [[package]]
 name = "io-uring-bearer"
-version = "0.2.0-pre2"
+version = "0.2.0-pre3"
 dependencies = [
  "capacity",
  "hashbrown",
@@ -206,6 +206,8 @@ dependencies = [
 [[package]]
 name = "ysockaddr"
 version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b87904a3c72b3ab98375fb4bb5057819c66db2d081f2aa30b36a81e982f10253"
 dependencies = [
  "libc",
 ]

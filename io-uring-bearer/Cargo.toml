@@ -1,6 +1,6 @@
 [package]
 name = "io-uring-bearer"
-version = "0.2.0-pre2"
+version = "0.2.0-pre3"
 edition = "2021"
 description = "io_uring bearer"
 homepage = "https://github.com/yaws-rs/io_uring-utils"
