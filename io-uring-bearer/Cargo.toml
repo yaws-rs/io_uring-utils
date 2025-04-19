@@ -19,7 +19,7 @@ nohash-hasher = "0.2.0"
 slab = { version = "0.4" }
 slabbable = { version = "0.1", path = "../../edifice/slabbable" }
 slabbable-impl-selector = { version = "0.1", path = "../../edifice/slabbable-impl-selector" }
-io-uring-opcode = { version = "0.2.0-pre2", path = "../io-uring-opcode" }
+io-uring-opcode = { version = "0.2.0-pre3", path = "../io-uring-opcode" }
 io-uring-fd = { version = "0.2.0-pre1", path = "../io-uring-fd" }
 io-uring-owner = { version = "0.2.0-pre1", path = "../io-uring-owner" }
 
