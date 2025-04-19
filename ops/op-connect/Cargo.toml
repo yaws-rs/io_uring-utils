@@ -13,8 +13,8 @@ categories = ["science"]
 [dependencies]
 io-uring = { version = "0.7" }
 libc = { version = "0.2", features = ["extra_traits"] }
-io-uring-opcode = { version = "0.2.0-pre1", path = "../../io-uring-opcode", features = ["connect"] }
-io-uring-bearer = { version = "0.2.0-pre1", path = "../../io-uring-bearer", features = ["connect"] }
+io-uring-opcode = { version = "0.2.0-pre3", path = "../../io-uring-opcode", features = ["connect"] }
+io-uring-bearer = { version = "0.2.0-pre3", path = "../../io-uring-bearer", features = ["connect"] }
 io-uring-fd = { version = "0.2.0-pre1", path = "../../io-uring-fd" }
 io-uring-owner = { version = "0.2.0-pre1", path = "../../io-uring-owner" }
 capacity = "0.1.2"
