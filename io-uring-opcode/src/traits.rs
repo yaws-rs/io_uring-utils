@@ -7,6 +7,11 @@ mod epoll_ctl;
 #[cfg(feature = "epoll")]
 pub use epoll_ctl::OpExtEpollCtl;
 
+#[cfg(feature = "connect")]
+mod connect;
+#[cfg(feature = "connect")]
+pub use connect::OpExtConnect;
+
 use core::pin::Pin;
 use io_uring_owner::Owner;
 

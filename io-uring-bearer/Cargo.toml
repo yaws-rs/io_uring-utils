@@ -26,6 +26,7 @@ io-uring-owner = { version = "0.2.0-pre1", path = "../io-uring-owner" }
 [features]
 default = []
 epoll = ["io-uring-opcode/epoll"]
+connect = ["io-uring-opcode/connect"]
 
 [package.metadata.docs.rs]
 features = ["epoll"]
