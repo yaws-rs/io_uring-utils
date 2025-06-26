@@ -7,6 +7,8 @@ mod recv;
 mod register;
 mod send_zc;
 
+#[cfg(feature = "connect")]
+mod connect;
 #[cfg(feature = "epoll")]
 mod epoll_ctl;
 

@@ -14,10 +14,12 @@ categories = ["science"]
 io-uring = "0.7.4"
 io-uring-owner = { version = "0.2.0-pre1", path = "../io-uring-owner" }
 libc = "0.2.169"
+ysockaddr = { version = "0.2.0" }
 
 [features]
 default = []
+connect = []
 epoll = []
 
 [package.metadata.docs.rs]
-features = ["epoll"]
+features = ["connect", "epoll"]
