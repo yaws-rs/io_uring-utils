@@ -2,6 +2,11 @@
 //! individual io_uring OpCode handlers which are sepated into different
 //! crates.
 
+#[cfg(feature = "accept_multi")]
+mod accept_multi;
+#[cfg(feature = "accept_multi")]
+pub use accept_multi::OpExtAcceptMulti;
+
 #[cfg(feature = "epoll")]
 mod epoll_ctl;
 #[cfg(feature = "epoll")]

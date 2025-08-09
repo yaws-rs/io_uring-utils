@@ -7,6 +7,8 @@ mod recv;
 mod register;
 mod send_zc;
 
+#[cfg(feature = "accept_multi")]
+mod accept_multi;
 #[cfg(feature = "connect")]
 mod connect;
 #[cfg(feature = "epoll")]

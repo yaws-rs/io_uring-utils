@@ -101,6 +101,20 @@ name = "io-uring-fd"
 version = "0.2.0-pre1"
 
 [[package]]
+name = "io-uring-op-accept-multi"
+version = "0.0.1"
+dependencies = [
+ "capacity",
+ "io-uring",
+ "io-uring-bearer",
+ "io-uring-fd",
+ "io-uring-opcode",
+ "io-uring-owner",
+ "libc",
+ "ysockaddr",
+]
+
+[[package]]
 name = "io-uring-op-connect"
 version = "0.0.1"
 dependencies = [

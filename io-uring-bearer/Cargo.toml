@@ -25,6 +25,7 @@ io-uring-owner = { version = "0.2.0-pre1", path = "../io-uring-owner" }
 
 [features]
 default = []
+accept_multi = ["io-uring-opcode/accept_multi"]
 epoll = ["io-uring-opcode/epoll"]
 connect = ["io-uring-opcode/connect"]
 
