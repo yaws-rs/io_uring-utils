@@ -18,6 +18,7 @@ ysockaddr = { version = "0.2.0" }
 
 [features]
 default = []
+accept_multi = []
 connect = []
 epoll = []
 
