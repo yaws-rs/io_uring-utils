@@ -9,6 +9,7 @@ use slab::{Slab, VacantEntry};
 
 #[derive(Clone, Debug)]
 pub(crate) struct FixedFdRegister {
+    #[allow(dead_code)]
     fno2fixed: SelectedHashMap<u32, u32, SelectedHasher<u32>>,
     fixed_ord: Slab<(u32, RegisteredFd)>,
     capacity: u32,

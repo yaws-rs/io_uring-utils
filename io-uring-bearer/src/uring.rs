@@ -111,7 +111,7 @@ impl<C: core::fmt::Debug + Clone + OpCompletion> UringBearer<C> {
     {
         // SAFETY: We Retain the original submission record and don't move it.
         unsafe {
-            self.handle_completions(user, |u, e, rec| {
+            self.handle_completions(user, None, |u, e, rec| {
                 func(u, e, rec);
                 SubmissionRecordStatus::Retain
             })
@@ -130,14 +130,15 @@ impl<C: core::fmt::Debug + Clone + OpCompletion> UringBearer<C> {
     pub unsafe fn handle_completions<F, U>(
         &mut self,
         user: &mut U,
+        #[allow(unused_variables)] limit: Option<u32>,
         func: F,
     ) -> Result<(), UringBearerError>
     where
         F: Fn(&mut U, &io_uring::cqueue::Entry, &Completion<C>) -> SubmissionRecordStatus,
     {
         let iou = &mut self.io_uring;
-        let c_queue = iou.completion();
-        for item in c_queue {
+        let mut c_queue = iou.completion();
+        while let Some(item) = c_queue.next() {
             let key = item.user_data();
             let a_rec_t = self
                 .fd_slab

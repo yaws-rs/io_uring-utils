@@ -20,6 +20,7 @@ pub struct SendZcFixedRec {
     fixed_fd: u32,
     owner: Owner,
     buf_taken: TakenImmutableBuffer,
+    #[allow(dead_code)]
     to_addr: Option<DestTo>,
 }
 
@@ -30,6 +31,7 @@ pub struct SendZcUnsafeRefRec {
     owner: Owner,
     buf_const_u8: *const u8,
     buf_size: u32,
+    #[allow(dead_code)]
     to_addr: Option<DestTo>,
 }
 
@@ -80,6 +82,7 @@ impl SendZcRec {
 
 /// When SendTo is sepcified, send(2) is turned into sendto(2)
 #[derive(Clone, Debug)]
+#[allow(dead_code)]
 pub enum DestTo {
     V4(DestToV4),
     V6(DestToV6),
@@ -87,6 +90,7 @@ pub enum DestTo {
 
 /// IPv4 SendTo
 #[derive(Clone, Debug)]
+#[allow(dead_code)]
 pub struct DestToV4 {
     pub(crate) sockaddr: libc::sockaddr_in,
     pub(crate) socklen_t: libc::socklen_t,
@@ -94,6 +98,7 @@ pub struct DestToV4 {
 
 /// IPv6 SendTo
 #[derive(Clone, Debug)]
+#[allow(dead_code)]
 pub struct DestToV6 {
     pub(crate) sockaddr: libc::sockaddr_in6,
     pub(crate) socklen_t: libc::socklen_t,

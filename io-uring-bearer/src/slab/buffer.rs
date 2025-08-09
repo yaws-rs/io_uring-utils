@@ -84,6 +84,7 @@ impl ProvideBuffersRec {
 
 /// Mutable Buffer is taken by something, let's provide it intermediate type.  
 #[derive(Clone, Debug)]
+#[allow(dead_code)]
 pub(crate) struct TakenMutableBuffer {
     pub(crate) buf_idx: usize,
     pub(crate) buf_mut_u8: *mut u8,
@@ -108,6 +109,7 @@ pub(crate) fn take_one_mutable_buffer_raw(
 
 /// Buffer is taken by something for Read-Only, let's provide it intermediate type.  
 #[derive(Clone, Debug)]
+#[allow(dead_code)]
 pub(crate) struct TakenImmutableBuffer {
     pub(crate) buf_idx: usize,
     pub(crate) buf_const_u8: *const u8,
