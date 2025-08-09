@@ -13,6 +13,8 @@ mod accept_multi;
 mod connect;
 #[cfg(feature = "epoll")]
 mod epoll_ctl;
+#[cfg(feature = "socket")]
+mod socket;
 
 use crate::error::UringBearerError;
 

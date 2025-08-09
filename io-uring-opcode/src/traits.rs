@@ -17,6 +17,11 @@ mod connect;
 #[cfg(feature = "connect")]
 pub use connect::OpExtConnect;
 
+#[cfg(feature = "socket")]
+mod socket;
+#[cfg(feature = "socket")]
+pub use socket::OpExtSocket;
+
 use core::pin::Pin;
 use io_uring_owner::Owner;
 

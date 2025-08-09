@@ -1,0 +1,24 @@
+[package]
+name = "io-uring-op-socket"
+version = "0.0.1"
+edition = "2021"
+description = "Socket OpCode for io-uring-bearer"
+homepage = "https://github.com/yaws-rs/io_uring-utils/tree/main/op-socket"
+keywords = ["io", "uring"]
+license = "Apache-2.0/MIT"
+readme = "README.md"
+repository = "https://github.com/yaws-rs/io_uring-utils/tree/main/op-socket"
+categories = ["science"]
+
+[dependencies]
+io-uring = { version = "0.7" }
+libc = { version = "0.2", features = ["extra_traits"] }
+io-uring-opcode = { version = "0.2.0-pre3", path = "../../io-uring-opcode", features = ["socket"] }
+io-uring-bearer = { version = "0.2.0-pre3", path = "../../io-uring-bearer", features = ["socket"] }
+io-uring-fd = { version = "0.2.0-pre1", path = "../../io-uring-fd" }
+io-uring-owner = { version = "0.2.0-pre1", path = "../../io-uring-owner" }
+capacity = "0.1.2"
+ysockaddr = { version = "0.2.0" }
+
+[features]
+default = []

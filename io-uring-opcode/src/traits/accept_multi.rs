@@ -3,5 +3,5 @@
 /// Connect Expansion trait
 pub trait OpExtAcceptMulti {
     /// Underlying Fixed Fd ref
-    fn fixed_fd(&self) -> u32;    
+    fn fixed_fd(&self) -> u32;
 }
