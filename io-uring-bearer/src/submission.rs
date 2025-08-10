@@ -8,12 +8,6 @@ use io_uring::squeue::Flags as IoUringFlags;
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct SubmissionFlags {
     pub(crate) bits: u8,
-    /*    pub(crate) fl_io_drain: bool,
-    pub(crate) fl_io_link: bool,
-    pub(crate) fl_io_hard_link: bool,
-    pub(crate) fl_async: bool,
-    pub(crate) fl_buffer_select: bool,
-    pub(crate) fl_skip_success: bool, */
 }
 
 impl SubmissionFlags {
