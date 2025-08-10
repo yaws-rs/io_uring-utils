@@ -21,6 +21,7 @@ default = []
 accept_multi = []
 connect = []
 epoll = []
+socket = []
 
 [package.metadata.docs.rs]
-features = ["connect", "epoll"]
+features = ["accept_multi", "connect", "epoll", "socket"]

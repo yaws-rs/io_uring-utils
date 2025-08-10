@@ -31,11 +31,15 @@ pub enum Completion<C> {
     /// Gen + OpExtConnect impl
     #[cfg(feature = "accept_multi")]
     AcceptMulti(C),
+    /// Gen + OpExtConnect impl
     #[cfg(feature = "connect")]
     Connect(C),
     /// Gen + OpExtEpollCtl impl
     #[cfg(feature = "epoll")]
     EpollCtl(C),
+    /// Gen + OpExtSocket impl
+    #[cfg(feature = "socket")]
+    Socket(C),
     /// Gen Trait impl
     Op(C),
 }
@@ -54,6 +58,8 @@ impl<C: OpCompletion> Completion<C> {
             Completion::Connect(r) => r.entry(),
             #[cfg(feature = "epoll")]
             Completion::EpollCtl(r) => r.entry(),
+            #[cfg(feature = "socket")]
+            Completion::Socket(r) => r.entry(),
             _ => todo!(),
         }
     }
@@ -70,6 +76,8 @@ impl<C: OpCompletion> Completion<C> {
             Self::Connect(ref impl_op) => impl_op.owner(),
             #[cfg(feature = "epoll")]
             Self::EpollCtl(ref impl_op) => impl_op.owner(),
+            #[cfg(feature = "socket")]
+            Self::Socket(ref impl_op) => impl_op.owner(),
             _ => todo!(),
         }
     }
@@ -86,6 +94,8 @@ impl<C: OpCompletion> Completion<C> {
             Self::Connect(ref mut impl_op) => impl_op.force_owner_kernel(),
             #[cfg(feature = "epoll")]
             Self::EpollCtl(ref mut impl_op) => impl_op.force_owner_kernel(),
+            #[cfg(feature = "socket")]
+            Self::Socket(ref mut impl_op) => impl_op.force_owner_kernel(),
             _ => todo!(),
         }
     }

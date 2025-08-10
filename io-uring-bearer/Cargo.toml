@@ -28,6 +28,7 @@ default = []
 accept_multi = ["io-uring-opcode/accept_multi"]
 epoll = ["io-uring-opcode/epoll"]
 connect = ["io-uring-opcode/connect"]
+socket = ["io-uring-opcode/socket"]
 
 [package.metadata.docs.rs]
 features = ["epoll"]

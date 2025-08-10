@@ -7,23 +7,26 @@
 )]
 #![doc = include_str!("../README.md")]
 
-//***********************************************
-// Re-Exports
-//***********************************************
-
 //-----------------------------------------------
 // All Errors
 //-----------------------------------------------
 mod error;
+#[doc(inline)]
 pub use error::*;
 
 //-----------------------------------------------
-// UringOpCode Trait
+// Socket Record Types
 //-----------------------------------------------
-mod traits;
-pub use traits::*;
+mod socket;
+#[doc(inline)]
+pub use socket::Socket;
 
 //-----------------------------------------------
-// UringOpCode associated Types
+// Re-export associated types
 //-----------------------------------------------
-pub mod types;
+#[doc(inline)]
+pub use io_uring_opcode::types::TargetFdType;
+
+//-----------------------------------------------
+// Misc crate-wide private types
+//-----------------------------------------------
