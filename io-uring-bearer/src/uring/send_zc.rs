@@ -2,6 +2,7 @@
 
 use crate::uring::UringBearerError;
 use crate::Completion;
+use crate::SubmissionFlags;
 use crate::UringBearer;
 
 use crate::slab::SendZcRec;
@@ -18,6 +19,7 @@ impl<C: core::fmt::Debug + Clone + OpCompletion> UringBearer<C> {
         fixed_fd: u32,
         buf_idx: usize,
         kernel_index: u16,
+        flags: Option<SubmissionFlags>,
     ) -> Result<usize, UringBearerError> {
         let taken_buf = self.take_one_immutable_buffer(buf_idx, kernel_index)?;
         if !self._fixed_fd_validate(fixed_fd) {
@@ -31,7 +33,7 @@ impl<C: core::fmt::Debug + Clone + OpCompletion> UringBearer<C> {
             )))
             .map_err(UringBearerError::Slabbable)?;
 
-        self._push_to_completion(key)?;
+        self._push_to_completion(key, flags)?;
         Ok(key)
     }
 }

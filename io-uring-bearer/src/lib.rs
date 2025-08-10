@@ -34,6 +34,13 @@ mod capacity;
 pub use capacity::BearerCapacityKind;
 
 //-----------------------------------------------
+// Submission types
+//-----------------------------------------------
+mod submission;
+#[doc(inline)]
+pub use submission::SubmissionFlags;
+
+//-----------------------------------------------
 // Completion types
 //-----------------------------------------------
 pub mod completion;

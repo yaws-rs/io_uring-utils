@@ -22,6 +22,7 @@ use io_uring::IoUring;
 
 use crate::completion::SubmissionRecordStatus;
 use crate::fixed::FixedFdRegister;
+use crate::SubmissionFlags;
 
 use crate::slab::BuffersRec;
 use crate::slab::FutexRec;
@@ -177,33 +178,51 @@ impl<C: core::fmt::Debug + Clone + OpCompletion> UringBearer<C> {
             .map_err(|e| UringBearerError::Submission(e.to_string()))
     }
     /// Push a general Op implementing OpCode trait (see io-uring-opcode)
-    pub fn push_op<Op: OpCode<C>>(&mut self, op: Op) -> Result<usize, UringBearerError> {
+    pub fn push_op<Op: OpCode<C>>(
+        &mut self,
+        op: Op,
+        flags: Option<SubmissionFlags>,
+    ) -> Result<usize, UringBearerError> {
         let key = self
             .fd_slab
             .take_next_with(Completion::Op(op.submission()?))
             .map_err(UringBearerError::Slabbable)?;
 
-        match self._push_to_completion(key) {
+        match self._push_to_completion(key, flags) {
             Err(e) => Err(e),
             Ok(()) => Ok(key),
         }
     }
     /// Push a pending typed Completion directly
-    pub fn push_op_typed(&mut self, op: Completion<C>) -> Result<usize, UringBearerError> {
+    pub fn push_op_typed(
+        &mut self,
+        op: Completion<C>,
+        flags: Option<SubmissionFlags>,
+    ) -> Result<usize, UringBearerError> {
         let key = self
             .fd_slab
             .take_next_with(op)
             .map_err(UringBearerError::Slabbable)?;
 
-        match self._push_to_completion(key) {
+        match self._push_to_completion(key, flags) {
             Err(e) => Err(e),
             Ok(()) => Ok(key),
         }
     }
     #[inline]
-    pub(crate) fn _push_to_completion(&mut self, idx: usize) -> Result<(), UringBearerError> {
+    pub(crate) fn _push_to_completion(
+        &mut self,
+        idx: usize,
+        in_flags: Option<SubmissionFlags>,
+    ) -> Result<(), UringBearerError> {
         let iou = &mut self.io_uring;
         let mut s_queue = iou.submission();
+
+        let flags = match in_flags {
+            None => SubmissionFlags::default(),
+            Some(fl) => fl,
+        }
+        .to_io_uring_flags()?;
 
         let completion_rec = self
             .fd_slab
@@ -216,7 +235,7 @@ impl<C: core::fmt::Debug + Clone + OpCompletion> UringBearer<C> {
                     return Err(UringBearerError::InvalidOwnership(completion.owner(), idx));
                 }
                 completion.force_owner_kernel();
-                completion.entry().user_data(idx as u64)
+                completion.entry().flags(flags).user_data(idx as u64)
             }
             _ => return Err(UringBearerError::SlabBugSetGet("Submisison not found?")),
         };
