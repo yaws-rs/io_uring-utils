@@ -21,6 +21,8 @@ pub enum UringBearerError {
     Submission(String),
     /// Something wrong Slab                                        
     Slab(String),
+    /// Invalid Submission Flags encountered
+    SubmissionFlags,
     /// Slab was able to store the value but not get it? This is a bug.
     SlabBugSetGet(&'static str),
     /// Register handles error
@@ -64,6 +66,7 @@ impl Display for UringBearerError {
             Self::SubmissionPush => write!(f, "Submisionn push error. Is the squeue full?"),
             Self::Submission(s) => write!(f, "Submission: {}", s),
             Self::Slab(s) => write!(f, "Slab: {}", s),
+            Self::SubmissionFlags => write!(f, "Invalid flags set in Submission"),
             Self::SlabBugSetGet(s) => write!(f, "Slab Bug: {}", s),
             Self::RegisterHandles(s) => write!(f, "Register Handles: {}", s),
             Self::Slabbable(e) => write!(f, "Slabbable: {}", e),
