@@ -5,7 +5,7 @@ use io_uring::squeue::Flags as IoUringFlags;
 
 /// See Linux io_uring_sqe_set_flags(3) for IOSQE_ASYNC for the respective documentation.
 /// These flags may be set for each submission queue entry. By default all flags are Off.
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Copy, Clone, Debug, Default, PartialEq)]
 pub struct SubmissionFlags {
     pub(crate) bits: u8,
 }
