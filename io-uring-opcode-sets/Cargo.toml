@@ -1,0 +1,28 @@
+[package]
+name = "io-uring-opcode-sets"
+version = "0.0.1-whatever0"
+edition = "2021"
+description = "io_uring opcode trait contract between bearer and opcodes"
+homepage = "https://github.com/yaws-rs/io_uring-utils"
+keywords = ["io", "uring", "epoll", "async"]
+license = "Apache-2.0/MIT"
+readme = "README.md"
+repository = "https://github.com/yaws-rs/io_uring-utils"
+categories = ["science"]
+
+[dependencies]
+io-uring = { version = "0.7" }
+io-uring-opcode = { path = "../io-uring-opcode", version = "0.2.0-pre3" }
+io-uring-op-connect = { version = "0.0.1", path = "../ops/op-connect", optional=true }
+io-uring-op-socket = { version = "0.0.1", path = "../ops/op-socket", optional=true }
+io-uring-owner  = { path = "../io-uring-owner", version = "0.2.0-pre1" }
+
+[features]
+default = []
+accept_multi = []
+connect = ["dep:io-uring-op-connect", "io-uring-opcode/connect"]
+epoll = []
+socket = ["dep:io-uring-op-socket", "io-uring-opcode/socket"]
+
+[package.metadata.docs.rs]
+features = ["accept_multi", "connect", "epoll", "socket"]
