@@ -56,6 +56,8 @@ pub enum UringBearerError {
     FdRegisterFail,
     /// OpCode Error
     Op(OpError),
+    /// Invalid TargetFd assignment
+    InvalidTargetFd(u32),
 }
 
 impl Display for UringBearerError {
@@ -75,6 +77,7 @@ impl Display for UringBearerError {
                 "Invalid input parameter value {} at {} when {}",
                 val, at, s
             ),
+            Self::InvalidTargetFd(try_slot) => write!(f, "Invalid Target Fd {}", try_slot),
             Self::BufferNoOwnership(idx) => write!(f, "Buffer {} in invalid ownership state", idx),
             Self::BufferNotExist(idx) => write!(f, "Buffer {} does not exist.", idx),
             Self::BufferNotKernelOwned(idx) => {

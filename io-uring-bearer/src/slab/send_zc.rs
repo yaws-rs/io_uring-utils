@@ -36,6 +36,7 @@ pub struct SendZcUnsafeRefRec {
 }
 
 impl SendZcRec {
+    /// Zero-Copy Send with a previously Bearer created by and managed buffer.
     #[inline]
     pub(crate) fn with_fixed_buf(fixed_fd: u32, buf_taken: TakenImmutableBuffer) -> Self {
         SendZcRec::Fixed(SendZcFixedRec {
@@ -43,6 +44,22 @@ impl SendZcRec {
             owner: Owner::Created,
             buf_taken,
             to_addr: None, // TODO
+        })
+    }
+    /// Zero-Copy Send with the supplied raw buffer which not managed by the bearer.
+    #[inline]
+    pub(crate) unsafe fn with_unsafe_rawbuf(
+        fixed_fd: u32,
+        buf_const_u8: *const u8,
+        buf_size: u32,
+        to_addr: Option<DestTo>,
+    ) -> Self {
+        Self::UnsafeRef(SendZcUnsafeRefRec {
+            fixed_fd,
+            owner: Owner::Created,
+            buf_const_u8,
+            buf_size,
+            to_addr,
         })
     }
     #[inline]
