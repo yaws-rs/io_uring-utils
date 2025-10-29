@@ -6,30 +6,43 @@ use slabbable::Slabbable;
 use super::UringBearerError; // TODO: COnsider AcceptError?
 use crate::Completion;
 use crate::RawFd;
+use crate::TargetFd;
 
 use io_uring_opcode::OpCompletion;
+
+use io_uring::types::DestinationSlot;
 
 impl<C: core::fmt::Debug + Clone + OpCompletion> UringBearer<C> {
     /// Add Accept for a IPv4 TCP Listener                                                        
     ///                                                                                           
     /// # Safety                                                                                  
     ///                                                                                           
-    /// Use of a `fd` that is not a valid IPv4 TCP Listener is undefined behaviour.               
-    pub unsafe fn add_accept_ipv4(&mut self, fd: RawFd) -> Result<(), UringBearerError> {
-        self.add_accept(fd, false)
+    /// Use of a `fd` that is not a valid IPv4 TCP Listener is undefined behaviour.
+    #[inline]
+    pub unsafe fn add_accept_ipv4(
+        &mut self,
+        fd: RawFd,
+        target_fd: TargetFd,
+    ) -> Result<(), UringBearerError> {
+        self.add_accept(fd, false, target_fd)
     }
     /// Add Accept for a IPv6 TCP Listener                                                        
     ///                                                                                           
     /// # Safety                                                                                  
     ///                                                                                           
     /// Use of a `fd` that is not a valid IPv6 TCP Listener is undefined behaviour.               
-    pub unsafe fn add_accept_ipv6(&mut self, fd: RawFd) -> Result<(), UringBearerError> {
-        self.add_accept(fd, true)
+    pub unsafe fn add_accept_ipv6(
+        &mut self,
+        fd: RawFd,
+        target_fd: TargetFd,
+    ) -> Result<(), UringBearerError> {
+        self.add_accept(fd, true, target_fd)
     }
     pub(crate) unsafe fn add_accept(
         &mut self,
         fd: RawFd,
         v6: bool,
+        target_fd: TargetFd,
     ) -> Result<(), UringBearerError> {
         let iou = &mut self.io_uring;
         let mut s_queue = iou.submission();
@@ -47,7 +60,15 @@ impl<C: core::fmt::Debug + Clone + OpCompletion> UringBearer<C> {
             .fd_slab
             .slot_get_ref(key)
             .map_err(UringBearerError::Slabbable)?;
-        let dest_slot = None;
+        let dest_slot = match target_fd {
+            TargetFd::Unregistered => None,
+            TargetFd::AutoRegistered => Some(DestinationSlot::auto_target()),
+            TargetFd::ManualRegistered(try_slot) => {
+                let dest_slot = DestinationSlot::try_from_slot_target(try_slot)
+                    .map_err(|_| UringBearerError::InvalidTargetFd(try_slot))?;
+                Some(dest_slot)
+            }
+        };
         let flags = libc::EFD_NONBLOCK & libc::EFD_CLOEXEC;
 
         match a_rec_t {

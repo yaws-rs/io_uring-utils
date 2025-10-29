@@ -39,6 +39,8 @@ pub use capacity::BearerCapacityKind;
 mod submission;
 #[doc(inline)]
 pub use submission::SubmissionFlags;
+#[doc(inline)]
+pub use submission::TargetFd;
 
 //-----------------------------------------------
 // Completion types

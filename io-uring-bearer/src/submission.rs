@@ -58,3 +58,25 @@ impl SubmissionFlags {
         }
     }
 }
+
+/// Indicate whether the resulting filehandle upon completion of the submission
+/// should be registered / associated as "fixed" to the io_uring bearer or not.
+///
+/// Registering the filahandle here can avoid additional overhead of registering it later
+/// separately within the io_uring context.
+///
+/// Registered "fixed" io_uring filehandles are not available in non-io_uring context and
+/// start from zero.
+///
+/// When registering the filehandle within io_uring there has to be free space within the
+/// initialized map of filehandles done prior and when manually targeting a fixed slot
+/// it must be free and ready to be assigned.
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum TargetFd {
+    /// Regular non-io_uring registered filehandle. Useful for non-io_uring uses.
+    Unregistered,
+    /// Auto-assigned fixed slot io_uring registered or "fixed" filehandle.
+    AutoRegistered,
+    /// Manually assigned fixed slot io_uring registered or "fixed" filehandle.
+    ManualRegistered(u32),
+}
