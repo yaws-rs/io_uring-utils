@@ -1,0 +1,31 @@
+[package]
+name = "io-uring-bufring"
+version = "0.1.0"
+edition = "2021"
+description = "io_uring bufring"
+homepage = "https://github.com/yaws-rs/io_uring-utils"
+keywords = ["io", "uring", "epoll", "async"]
+license = "Apache-2.0/MIT"
+readme = "README.md"
+repository = "https://github.com/yaws-rs/io_uring-utils"
+categories = ["science"]
+
+[dependencies]
+io-uring = { version = "0.7", default-features = false }
+io-uring-bearer = { path = "../io-uring-bearer", version = "0.2.0-pre3", default-features = false, optional = true }
+io-uring-opcode = { path = "../io-uring-opcode", version = "0.2.0-pre3", default-features = false, optional = true }
+anonymous-mmap = { path = "../../ylibc/anonymous_mmap", version = "0.1.0", default-features = false }
+libc = { version = "0.2", features = ["extra_traits"] }
+
+[dev-dependencies]
+capacity = "0.1"
+io-uring-opcode = { path = "../io-uring-opcode", version = "0.2.0-pre3", features = ["accept_multi", "connect", "socket"] }
+io-uring-opcode-sets = { path = "../io-uring-opcode-sets", version = "0.0.1-whatever0", features = ["accept_multi", "connect", "socket"] }
+ysockaddr = { version = "0.2.0" }
+
+[features]
+default = []
+bearer = ["dep:io-uring-bearer", "dep:io-uring-opcode"]
+
+[package.metadata.docs.rs]
+features = [""]

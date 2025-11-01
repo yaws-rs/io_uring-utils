@@ -111,4 +111,4 @@ impl From<OpError> for UringBearerError {
     }
 }
 
-impl std::error::Error for UringBearerError {}
+impl core::error::Error for UringBearerError {}

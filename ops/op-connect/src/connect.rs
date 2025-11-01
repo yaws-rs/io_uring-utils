@@ -36,8 +36,6 @@ impl OpCompletion for Connect {
     fn entry(&self) -> io_uring::squeue::Entry {
         let (saddr, slen) = self.ysaddr.as_c_sockaddr_len();
 
-        println!("OpCompletion entry() saddr = {:p}, slen = {}", saddr, slen);
-
         io_uring::opcode::Connect::new(io_uring::types::Fixed(self.fixed_fd), saddr, slen).build()
     }
     fn owner(&self) -> Owner {
