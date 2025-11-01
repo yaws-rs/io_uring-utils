@@ -4,22 +4,24 @@ use core::pin::Pin;
 use io_uring_opcode::{OpCompletion, OpCode, OpError};
 
 #[cfg(feature = "connect")]
-use io_uring_opcode::OpExtConnect;
-#[cfg(feature = "connect")]
-use io_uring_op_connect::Connect;
+pub use io_uring_op_connect::Connect;
 
 #[cfg(feature = "socket")]
-use io_uring_opcode::OpExtSocket;
-#[cfg(feature = "socket")]
-use io_uring_op_socket::Socket;
+pub use io_uring_op_socket::Socket;
 
+/// unreachable
 #[derive(Clone, Debug)]
 pub enum WrapperError {
 }
 
+/// Wrapper for all the possible OpCodes
 #[derive(Clone, Debug)]
 pub enum Wrapper {
+    /// Connect OpCode
+    #[cfg(feature = "connect")]
     Connect(Connect),
+    /// Socket OpCode
+    #[cfg(feature = "socket")]
     Socket(Socket),
 }
 
@@ -86,6 +88,7 @@ impl OpCode<Wrapper> for Connect {
 
 
 impl Wrapper {
+    /// Unwrap Socket type
     #[inline]
     pub fn unwrap_socket(&self) -> &Socket {
         match self {
@@ -93,6 +96,7 @@ impl Wrapper {
             _ => panic!("Invalid Unwrap - Not a Socket"),
         }
     }
+    /// Unwrap Connect type
     #[inline]
     pub fn unwrap_connect(&self) -> &Connect {
         match self {
@@ -100,6 +104,7 @@ impl Wrapper {
             _ => panic!("Invalid Unwrap - Not a Connect"),
         }
     }
+    /// unreachable
     #[inline]
     pub fn fixed_fd(&self) -> u32 {
         todo!()

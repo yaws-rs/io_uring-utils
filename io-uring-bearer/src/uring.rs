@@ -250,15 +250,17 @@ impl<C: core::fmt::Debug + Clone + OpCompletion> UringBearer<C> {
     }
     // TODO: Rework - this should be generic and FdKind'ed
     #[inline]
-    fn _fixed_fd_validate(&self, try_fixed_fd: u32) -> bool {
+    fn _fixed_fd_validate(&self, _try_fixed_fd: u32) -> bool {
         // TODO: provide external entity (yaoi) better API to set things registered
         return true;
-        if try_fixed_fd > self.fd_register.capacity() - 1 {
+        /*
+        if _try_fixed_fd > self.fd_register.capacity() - 1 {
             return false;
         }
-        match self.fd_register.get(try_fixed_fd) {
+        match self.fd_register.get(_try_fixed_fd) {
             Some((_, _itm)) => true,
             _ => false,
-        }
+    }
+        */
     }
 }

@@ -10,16 +10,19 @@
 //***********************************************
 // Re-Exports
 //***********************************************
+pub use io_uring;
 
 //-----------------------------------------------
 // All Errors
 //-----------------------------------------------
-//mod error;
-//pub use error::*;
+mod error;
+#[doc(inline)]
+pub use error::RingBufError;
 
 //-----------------------------------------------
-// Wrapper
+// RingBuf type
 //-----------------------------------------------
-mod wrapper;
+
+mod ring_buf;
 #[doc(inline)]
-pub use wrapper::*;
+pub use ring_buf::*;
