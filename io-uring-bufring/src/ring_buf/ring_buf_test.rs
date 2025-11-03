@@ -43,14 +43,17 @@ mod bearer_test {
 
     use super::*;
     use capacity::{Capacity, Setting};
-    use io_uring_bearer::{UringBearer, error::UringBearerError, BearerCapacityKind, TargetFd, completion::SubmissionRecordStatus, Completion};
-    use io_uring_opcode_sets::{Socket, Connect, Wrapper};
     use io_uring_bearer::SubmissionFlags;
+    use io_uring_bearer::{
+        completion::SubmissionRecordStatus, error::UringBearerError, BearerCapacityKind,
+        Completion, TargetFd, UringBearer,
+    };
+    use io_uring_opcode_sets::{Connect, Socket, Wrapper};
     use ysockaddr::YSockAddrR;
-    
+
     #[derive(Clone, Debug)]
     struct TestCapacity;
-    
+
     impl Setting<BearerCapacityKind> for TestCapacity {
         fn setting(&self, _v: &BearerCapacityKind) -> usize {
             16
@@ -61,7 +64,7 @@ mod bearer_test {
         let cap = Capacity::<TestCapacity, BearerCapacityKind>::with_planned(TestCapacity);
         UringBearer::<Wrapper>::with_capacity(cap)
     }
-    
+
     #[test]
     fn create_reg_default_pagesize_ok() {
         let mut bearer = _create_bearer().unwrap();
@@ -77,7 +80,7 @@ mod bearer_test {
         let (raw_buf_client_in, ringbuf_client_in_unreg) = _create_unreg().unwrap();
         let (raw_buf_client_out, ringbuf_client_out_unreg) = _create_unreg().unwrap();
         let (raw_buf_server_in, ringbuf_server_in_unreg) = _create_unreg().unwrap();
-        let (raw_buf_server_out, ringbuf_server_out_unreg) = _create_unreg().unwrap();        
+        let (raw_buf_server_out, ringbuf_server_out_unreg) = _create_unreg().unwrap();
 
         let mut client_bearer = _create_bearer().unwrap();
         let mut server_bearer = _create_bearer().unwrap();
@@ -87,17 +90,21 @@ mod bearer_test {
         let local_addr = listener.local_addr().unwrap();
         let listener_raw_fd = listener.as_raw_fd();
         let listener_ysaddr = YSockAddrR::from_sockaddr(local_addr);
-        
-        let ringbuf_client_in =
-            ringbuf_client_in_unreg.register_with_bearer(&mut client_bearer, 100).unwrap();
-        
-        let ringbuf_client_out =
-            ringbuf_client_out_unreg.register_with_bearer(&mut client_bearer, 150).unwrap();
 
-        let ringbuf_server_in =
-            ringbuf_server_in_unreg.register_with_bearer(&mut server_bearer, 200).unwrap();
-        let ringbuf_server_out =
-            ringbuf_server_out_unreg.register_with_bearer(&mut server_bearer, 250).unwrap();        
+        let ringbuf_client_in = ringbuf_client_in_unreg
+            .register_with_bearer(&mut client_bearer, 100)
+            .unwrap();
+
+        let ringbuf_client_out = ringbuf_client_out_unreg
+            .register_with_bearer(&mut client_bearer, 150)
+            .unwrap();
+
+        let ringbuf_server_in = ringbuf_server_in_unreg
+            .register_with_bearer(&mut server_bearer, 200)
+            .unwrap();
+        let ringbuf_server_out = ringbuf_server_out_unreg
+            .register_with_bearer(&mut server_bearer, 250)
+            .unwrap();
 
         let flags_socket = Some(SubmissionFlags::default().on_io_link());
         let flags_connect: Option<SubmissionFlags> = None;
@@ -124,9 +131,11 @@ mod bearer_test {
                     libc::AF_INET,
                     libc::SOCK_STREAM,
                     libc::IPPROTO_TCP,
-                ).unwrap(),
+                )
+                .unwrap(),
                 flags_socket,
-            ).unwrap();
+            )
+            .unwrap();
         client_bearer
             .push_connect(
                 Connect::with_ysockaddr_c(0_u32, listener_ysaddr.as_c()).unwrap(),
@@ -135,7 +144,7 @@ mod bearer_test {
             .unwrap();
 
         unsafe { server_bearer.add_accept_ipv4(0, TargetFd::ManualRegistered(1)) }.unwrap();
-        
+
         client_bearer.submit();
         server_bearer.submit();
 
@@ -145,7 +154,7 @@ mod bearer_test {
             recv_sent: bool,
             send_sent: bool,
             client_addr: Option<core::net::SocketAddr>,
-            got_ping: bool,            
+            got_ping: bool,
         }
 
         #[derive(Default)]
@@ -154,17 +163,15 @@ mod bearer_test {
             recv_sent: bool,
             send_sent: bool,
             got_pong: bool,
-            
         }
         let mut server_data = ServerData::default();
         let mut client_data = ClientData::default();
-        
-        loop {
 
+        loop {
             if client_data.got_pong {
                 break;
             }
-            
+
             if client_data.ready && !client_data.recv_sent {
                 client_bearer.add_recv_multi(0, 100, None).unwrap();
                 client_data.recv_sent = true;
@@ -172,72 +179,101 @@ mod bearer_test {
             }
 
             if client_data.ready && !client_data.send_sent {
-                let surf = unsafe { core::slice::from_raw_parts_mut(raw_buf_client_out.as_ptr_mut() as *mut u8, 4) };
+                let surf = unsafe {
+                    core::slice::from_raw_parts_mut(raw_buf_client_out.as_ptr_mut() as *mut u8, 4)
+                };
                 surf.copy_from_slice("PING".as_bytes());
-                unsafe { client_bearer.add_send_zc_rawbuf(0, raw_buf_client_out.as_ptr_mut() as _, 4_u32, None, None); }
+                unsafe {
+                    client_bearer.add_send_zc_rawbuf(
+                        0,
+                        raw_buf_client_out.as_ptr_mut() as _,
+                        4_u32,
+                        None,
+                        None,
+                    );
+                }
                 client_data.send_sent = true;
                 client_bearer.submit();
             }
-            
+
             if server_data.ready && !server_data.recv_sent {
                 server_bearer.add_recv_multi(1, 200, None).unwrap();
                 server_data.recv_sent = true;
                 server_bearer.submit();
             }
 
-            if server_data.ready && server_data.got_ping && !server_data.send_sent{
-                let surf = unsafe { core::slice::from_raw_parts_mut(raw_buf_server_out.as_ptr_mut() as *mut u8, 4) };
+            if server_data.ready && server_data.got_ping && !server_data.send_sent {
+                let surf = unsafe {
+                    core::slice::from_raw_parts_mut(raw_buf_server_out.as_ptr_mut() as *mut u8, 4)
+                };
                 surf.copy_from_slice("PONG".as_bytes());
-                unsafe { server_bearer.add_send_zc_rawbuf(1, raw_buf_server_out.as_ptr_mut() as _, 4_u32, None, None); }
+                unsafe {
+                    server_bearer.add_send_zc_rawbuf(
+                        1,
+                        raw_buf_server_out.as_ptr_mut() as _,
+                        4_u32,
+                        None,
+                        None,
+                    );
+                }
                 server_data.send_sent = true;
                 server_bearer.submit();
             }
-            
-            unsafe { client_bearer.handle_completions(&mut client_data, None, |cdata, entry, rec| {
-                match rec {
-                    Completion::Socket(s) => {
-                        assert_eq!(entry.result(), 0);
-                        SubmissionRecordStatus::Forget
-                    },
-                    Completion::Connect(c) => {
-                        assert_eq!(entry.result(), 0);
-                        cdata.ready = true;
-                        SubmissionRecordStatus::Forget
-                    },
-                    Completion::RecvMulti(r) => {
-                        assert_eq!(entry.result(), 4);
-                        cdata.got_pong = true;
-                        SubmissionRecordStatus::Forget
-                    },
-                    Completion::SendZc(s) => {
-                        assert_eq!(entry.result(), 4);
-                        SubmissionRecordStatus::Forget
-                    },
-                    _ => panic!("client_bearer Unhandled entry = {:?}, rec = {:?}", entry, rec),
-                }
-            }) };
-            unsafe { server_bearer.handle_completions(&mut server_data, None, |sdata, entry, rec| {
-                match rec {
-                    Completion::Accept(a) => {
-                        assert_eq!(entry.result(), 0);
 
-                        sdata.ready = true;
-                        sdata.client_addr = a.sockaddr();
-                        SubmissionRecordStatus::Forget
-                    },
-                    Completion::SendZc(s) => {
-                        assert_eq!(entry.result(), 4);
-                        SubmissionRecordStatus::Forget
-                    },
-                    Completion::RecvMulti(r) => {
-                        assert_eq!(entry.result(), 4);
-                        sdata.got_ping = true;
-                        SubmissionRecordStatus::Forget
-                    },
-                    _ => panic!("server_bearer Unhandled entry = {:?}, rec = {:?}", entry, rec),                    
-                }
-            }) };
+            unsafe {
+                client_bearer.handle_completions(&mut client_data, None, |cdata, entry, rec| {
+                    match rec {
+                        Completion::Socket(s) => {
+                            assert_eq!(entry.result(), 0);
+                            SubmissionRecordStatus::Forget
+                        }
+                        Completion::Connect(c) => {
+                            assert_eq!(entry.result(), 0);
+                            cdata.ready = true;
+                            SubmissionRecordStatus::Forget
+                        }
+                        Completion::RecvMulti(r) => {
+                            assert_eq!(entry.result(), 4);
+                            cdata.got_pong = true;
+                            SubmissionRecordStatus::Forget
+                        }
+                        Completion::SendZc(s) => {
+                            assert_eq!(entry.result(), 4);
+                            SubmissionRecordStatus::Forget
+                        }
+                        _ => panic!(
+                            "client_bearer Unhandled entry = {:?}, rec = {:?}",
+                            entry, rec
+                        ),
+                    }
+                })
+            };
+            unsafe {
+                server_bearer.handle_completions(&mut server_data, None, |sdata, entry, rec| {
+                    match rec {
+                        Completion::Accept(a) => {
+                            assert_eq!(entry.result(), 0);
+
+                            sdata.ready = true;
+                            sdata.client_addr = a.sockaddr();
+                            SubmissionRecordStatus::Forget
+                        }
+                        Completion::SendZc(s) => {
+                            assert_eq!(entry.result(), 4);
+                            SubmissionRecordStatus::Forget
+                        }
+                        Completion::RecvMulti(r) => {
+                            assert_eq!(entry.result(), 4);
+                            sdata.got_ping = true;
+                            SubmissionRecordStatus::Forget
+                        }
+                        _ => panic!(
+                            "server_bearer Unhandled entry = {:?}, rec = {:?}",
+                            entry, rec
+                        ),
+                    }
+                })
+            };
         }
     }
-    
 }

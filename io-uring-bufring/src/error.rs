@@ -23,12 +23,15 @@ pub enum RingBufError {
 impl Display for RingBufError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::PageSizeUndivisible => write!(f, "Given / assumed page size must be divisible with the given buffer size"),
+            Self::PageSizeUndivisible => write!(
+                f,
+                "Given / assumed page size must be divisible with the given buffer size"
+            ),
             Self::Mmap(am) => write!(f, "mmap error: {}", am),
             #[cfg(feature = "bearer")]
             Self::Register(_, iou) => write!(f, "IoUring Register: {}", iou),
             #[cfg(feature = "bearer")]
-            Self::Unregister(_, iou) => write!(f, "IoUring Unregister: {}", iou),            
+            Self::Unregister(_, iou) => write!(f, "IoUring Unregister: {}", iou),
         }
     }
 }

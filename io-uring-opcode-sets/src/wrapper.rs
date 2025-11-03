@@ -1,7 +1,7 @@
 //! magic
 
 use core::pin::Pin;
-use io_uring_opcode::{OpCompletion, OpCode, OpError};
+use io_uring_opcode::{OpCode, OpCompletion, OpError};
 
 #[cfg(feature = "connect")]
 pub use io_uring_op_connect::Connect;
@@ -11,8 +11,7 @@ pub use io_uring_op_socket::Socket;
 
 /// unreachable
 #[derive(Clone, Debug)]
-pub enum WrapperError {
-}
+pub enum WrapperError {}
 
 /// Wrapper for all the possible OpCodes
 #[derive(Clone, Debug)]
@@ -32,7 +31,7 @@ impl OpCompletion for Wrapper {
         match self {
             Self::Connect(i) => i.entry(),
             Self::Socket(i) => i.entry(),
-        }        
+        }
     }
     #[inline]
     fn owner(&self) -> io_uring_owner::Owner {
@@ -43,7 +42,7 @@ impl OpCompletion for Wrapper {
     }
     #[inline]
     fn force_owner_kernel(&mut self) -> bool {
-        match self {        
+        match self {
             Self::Connect(i) => i.force_owner_kernel(),
             Self::Socket(i) => i.force_owner_kernel(),
         }
@@ -59,33 +58,52 @@ impl OpCompletion for Wrapper {
 
 #[cfg(feature = "connect")]
 impl OpCode<Connect> for Wrapper {
-    fn submission(self) -> Result<Connect, OpError> { todo!() }
-    fn completion(&mut self, _: Pin<&mut Connect>) -> Result<(), OpError> { todo!() }
+    fn submission(self) -> Result<Connect, OpError> {
+        todo!()
+    }
+    fn completion(&mut self, _: Pin<&mut Connect>) -> Result<(), OpError> {
+        todo!()
+    }
 }
 
 #[cfg(feature = "socket")]
 impl OpCode<Socket> for Wrapper {
-    fn submission(self) -> Result<Socket, OpError> { todo!() }
-    fn completion(&mut self, _: Pin<&mut Socket>) -> Result<(), OpError> { todo!() }
+    fn submission(self) -> Result<Socket, OpError> {
+        todo!()
+    }
+    fn completion(&mut self, _: Pin<&mut Socket>) -> Result<(), OpError> {
+        todo!()
+    }
 }
 
 impl OpCode<Wrapper> for Wrapper {
-    fn submission(self) -> Result<Wrapper, OpError> { todo!() }
-    fn completion(&mut self, _: Pin<&mut Wrapper>) -> Result<(), OpError> { todo!() }
+    fn submission(self) -> Result<Wrapper, OpError> {
+        todo!()
+    }
+    fn completion(&mut self, _: Pin<&mut Wrapper>) -> Result<(), OpError> {
+        todo!()
+    }
 }
 
 impl OpCode<Wrapper> for Socket {
     #[inline]
-    fn submission(self) -> Result<Wrapper, OpError> { Ok(Wrapper::Socket(self)) }
-    fn completion(&mut self, _: Pin<&mut Wrapper>) -> Result<(), OpError> { todo!() }
+    fn submission(self) -> Result<Wrapper, OpError> {
+        Ok(Wrapper::Socket(self))
+    }
+    fn completion(&mut self, _: Pin<&mut Wrapper>) -> Result<(), OpError> {
+        todo!()
+    }
 }
 
 impl OpCode<Wrapper> for Connect {
     #[inline]
-    fn submission(self) -> Result<Wrapper, OpError> { Ok(Wrapper::Connect(self)) }
-    fn completion(&mut self, _: Pin<&mut Wrapper>) -> Result<(), OpError> { todo!() }
+    fn submission(self) -> Result<Wrapper, OpError> {
+        Ok(Wrapper::Connect(self))
+    }
+    fn completion(&mut self, _: Pin<&mut Wrapper>) -> Result<(), OpError> {
+        todo!()
+    }
 }
-
 
 impl Wrapper {
     /// Unwrap Socket type

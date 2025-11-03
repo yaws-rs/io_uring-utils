@@ -1,21 +1,21 @@
 //! Uring RingBuf
 
 use crate::RingBufError;
-use core::sync::atomic::{AtomicU16, Ordering};
 use core::num::NonZero;
+use core::sync::atomic::{AtomicU16, Ordering};
 
 use io_uring::types::BufRingEntry;
 
 use anonymous_mmap::AnonymousMmap;
 
 /// The total desired amount of buffers in the ringbuf
-pub struct BufferCount(NonZero<u16>);
+pub struct BufferCount(pub NonZero<u16>);
 
 /// The desired size of each buffer
-pub struct PerBufferSize(NonZero<u16>);
+pub struct PerBufferSize(pub NonZero<u16>);
 
 /// The Pagesize used
-pub struct PageSize(NonZero<u16>);
+pub struct PageSize(pub NonZero<u16>);
 
 /// Pick the desired ringbuf capacity. Note that the Linux default
 /// pagesize is 4kB which we mostly assume will be used here.
@@ -31,13 +31,24 @@ pub struct RingBufChoice {
 impl RingBufChoice {
     /// Construct the choice checked against the Linux default pagesize which is 4 kB
     #[inline]
-    pub fn with_default_pagesize(bufs_count: BufferCount, per_buf_size: PerBufferSize) -> Result<Self, RingBufError> {
+    pub fn with_default_pagesize(
+        bufs_count: BufferCount,
+        per_buf_size: PerBufferSize,
+    ) -> Result<Self, RingBufError> {
         // SAFETY: The value supplied is non-zero literal
-        Self::with_custom_pagesize(bufs_count, per_buf_size, PageSize(unsafe { NonZero::new_unchecked(4096) }))
+        Self::with_custom_pagesize(
+            bufs_count,
+            per_buf_size,
+            PageSize(unsafe { NonZero::new_unchecked(4096) }),
+        )
     }
     /// Construct choice checked against custom page size
     #[inline]
-    pub fn with_custom_pagesize(bufs_count: BufferCount, per_buf_size: PerBufferSize, page_size: PageSize) -> Result<Self, RingBufError> {
+    pub fn with_custom_pagesize(
+        bufs_count: BufferCount,
+        per_buf_size: PerBufferSize,
+        page_size: PageSize,
+    ) -> Result<Self, RingBufError> {
         let bufs_count = bufs_count.0.get();
         let per_buf_size = per_buf_size.0.get();
         let page_size = page_size.0.get();
@@ -45,10 +56,14 @@ impl RingBufChoice {
         if per_buf_size % page_size != 0 {
             return Err(RingBufError::PageSizeUndivisible);
         }
-        
+
         let total_bufs_size = bufs_count as usize * per_buf_size as usize;
 
-        Ok(Self { bufs_count, per_buf_size, total_bufs_size })
+        Ok(Self {
+            bufs_count,
+            per_buf_size,
+            total_bufs_size,
+        })
     }
     /// Construct a choice using a page size that is not checked against the given per buffer size
     #[inline]
@@ -56,7 +71,11 @@ impl RingBufChoice {
         let bufs_count = bufs_count.0.get();
         let per_buf_size = per_buf_size.0.get();
         let total_bufs_size = bufs_count as usize * per_buf_size as usize;
-        Self { bufs_count, per_buf_size, total_bufs_size }
+        Self {
+            bufs_count,
+            per_buf_size,
+            total_bufs_size,
+        }
     }
 }
 
@@ -89,7 +108,6 @@ pub struct RingBufUnregistered {
     ring_start: AnonymousMmap,
 }
 
-
 impl RingBufUnregistered {
     /// Create unregistered io_uring ringbuf with the given ringbuf choice and raw buffer.
     ///
@@ -101,13 +119,15 @@ impl RingBufUnregistered {
     /// When this ring is used within the io_uring, the raw buffer must stay valid and ummoved
     /// for the whole time it's registered.
     #[inline]
-    pub unsafe fn with_rawbuf_continuous(choice: RingBufChoice, base_ptr: *mut u8) -> Result<Self, RingBufError> {
+    pub unsafe fn with_rawbuf_continuous(
+        choice: RingBufChoice,
+        base_ptr: *mut u8,
+    ) -> Result<Self, RingBufError> {
         let entry_size = size_of::<BufRingEntry>(); // 16B
         let ring_size = entry_size * choice.total_bufs_count() as usize;
-        let ring_start = AnonymousMmap::new(ring_size)
-            .map_err(RingBufError::Mmap)?;
+        let ring_start = AnonymousMmap::new(ring_size).map_err(RingBufError::Mmap)?;
 
-        for bid in 0u16 .. choice.total_bufs_count() {
+        for bid in 0u16..choice.total_bufs_count() {
             let entries = ring_start.as_ptr_mut() as *mut BufRingEntry;
             // SAFETY: Our owned AnonymousMmap holds the validity
             let new_entry = unsafe { &mut *entries.add(bid as usize) };
@@ -119,15 +139,14 @@ impl RingBufUnregistered {
         }
 
         // SAFETY: Our owned AnonymousMmap holds the validity
-        let shared_tail =
-            unsafe { BufRingEntry::tail(ring_start.as_ptr() as *const BufRingEntry) }
-        as *const AtomicU16;
+        let shared_tail = unsafe { BufRingEntry::tail(ring_start.as_ptr() as *const BufRingEntry) }
+            as *const AtomicU16;
 
         // SAFETY: Nobody else is modifying it.
         unsafe {
             (*shared_tail).store(256, Ordering::Release);
         }
-        
+
         Ok(Self { choice, ring_start })
     }
     /// Provides the ring start mut ptr e.g. using it to register it with io_uring.
@@ -148,7 +167,11 @@ impl RingBufUnregistered {
     /// Register the unregistered ring buffer with the given bearer and buffer group id.
     #[inline]
     #[cfg(feature = "bearer")]
-    pub fn register_with_bearer<W>(self, bearer: &mut io_uring_bearer::UringBearer<W>, bgid: u16) -> Result<RingBufRegistered, RingBufError>
+    pub fn register_with_bearer<W>(
+        self,
+        bearer: &mut io_uring_bearer::UringBearer<W>,
+        bgid: u16,
+    ) -> Result<RingBufRegistered, RingBufError>
     where
         W: core::fmt::Debug + Clone + io_uring_opcode::OpCompletion,
     {
@@ -165,8 +188,11 @@ impl RingBufUnregistered {
 
         match r {
             Err(e) => Err(RingBufError::Register(self, e)),
-            Ok(()) => Ok(RingBufRegistered { inner_ring: self, bgid }),
-        }        
+            Ok(()) => Ok(RingBufRegistered {
+                inner_ring: self,
+                bgid,
+            }),
+        }
     }
 }
 
@@ -183,19 +209,20 @@ impl RingBufRegistered {
     /// Register the unregistered ring buffer with the given bearer and buffer group id.
     #[inline]
     #[cfg(feature = "bearer")]
-    pub fn unregister_with_bearer<W>(self, bearer: &mut io_uring_bearer::UringBearer<W>) -> Result<RingBufUnregistered, RingBufError>
+    pub fn unregister_with_bearer<W>(
+        self,
+        bearer: &mut io_uring_bearer::UringBearer<W>,
+    ) -> Result<RingBufUnregistered, RingBufError>
     where
         W: core::fmt::Debug + Clone + io_uring_opcode::OpCompletion,
     {
-        let r = bearer.io_uring().submitter().unregister_buf_ring(
-            self.bgid,
-        );
+        let r = bearer.io_uring().submitter().unregister_buf_ring(self.bgid);
 
         match r {
             Err(e) => Err(RingBufError::Unregister(self, e)),
             Ok(()) => Ok(self.inner_ring),
         }
-    }    
+    }
 }
 
 #[cfg(test)]

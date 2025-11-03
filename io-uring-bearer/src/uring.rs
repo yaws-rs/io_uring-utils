@@ -254,13 +254,13 @@ impl<C: core::fmt::Debug + Clone + OpCompletion> UringBearer<C> {
         // TODO: provide external entity (yaoi) better API to set things registered
         return true;
         /*
-        if _try_fixed_fd > self.fd_register.capacity() - 1 {
-            return false;
+            if _try_fixed_fd > self.fd_register.capacity() - 1 {
+                return false;
+            }
+            match self.fd_register.get(_try_fixed_fd) {
+                Some((_, _itm)) => true,
+                _ => false,
         }
-        match self.fd_register.get(_try_fixed_fd) {
-            Some((_, _itm)) => true,
-            _ => false,
-    }
-        */
+            */
     }
 }
