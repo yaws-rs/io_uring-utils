@@ -14,6 +14,16 @@ pub enum SendZcRec {
     UnsafeRef(SendZcUnsafeRefRec),
 }
 
+impl SendZcRec {
+    #[inline]
+    pub fn fixed_fd(&self) -> u32 {
+        match self {
+            Self::Fixed(fr) => fr.fixed_fd,
+            Self::UnsafeRef(fr) => fr.fixed_fd,
+        }
+    }
+}
+
 /// SendZc Fixed Record
 #[derive(Clone, Debug)]
 pub struct SendZcFixedRec {
