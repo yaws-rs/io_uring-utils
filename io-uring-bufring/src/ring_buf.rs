@@ -1,6 +1,7 @@
 //! Uring RingBuf
 
 use crate::RingBufError;
+use core::cell::Cell;
 use core::num::NonZero;
 use core::sync::atomic::{AtomicU16, Ordering};
 
@@ -106,6 +107,9 @@ impl RingBufChoice {
 pub struct RingBufUnregistered {
     choice: RingBufChoice,
     ring_start: AnonymousMmap,
+    shared_tail: *const AtomicU16,
+    local_tail: Cell<u16>,
+    base_ptr: *mut u8,
 }
 
 impl RingBufUnregistered {
@@ -126,9 +130,9 @@ impl RingBufUnregistered {
         let entry_size = size_of::<BufRingEntry>(); // 16B
         let ring_size = entry_size * choice.total_bufs_count() as usize;
         let ring_start = AnonymousMmap::new(ring_size).map_err(RingBufError::Mmap)?;
+        let entries = ring_start.as_ptr_mut() as *mut BufRingEntry;
 
         for bid in 0u16..choice.total_bufs_count() {
-            let entries = ring_start.as_ptr_mut() as *mut BufRingEntry;
             // SAFETY: Our owned AnonymousMmap holds the validity
             let new_entry = unsafe { &mut *entries.add(bid as usize) };
             // SAFETY: Our owned AnonymousMmap holds the validity
@@ -144,11 +148,55 @@ impl RingBufUnregistered {
 
         // SAFETY: Nobody else is modifying it.
         unsafe {
-            (*shared_tail).store(256, Ordering::Release);
+            (*shared_tail).store(choice.total_bufs_count(), Ordering::Release);
         }
 
-        Ok(Self { choice, ring_start })
+        let local_tail = Cell::new(choice.total_bufs_count());
+
+        Ok(Self {
+            choice,
+            ring_start,
+            shared_tail,
+            local_tail,
+            base_ptr,
+        })
     }
+    #[inline]
+    fn buf_ring_sync(&self) {
+        unsafe {
+            (*self.shared_tail).store(self.local_tail.get(), Ordering::Release);
+        }
+    }
+    /// Add buffer with id to the ring. Updates the tail
+    #[inline]
+    pub unsafe fn dropping_bid(&mut self, bid: u16) {
+        self.add_bid(bid);
+        self.buf_ring_sync();
+    }
+    /// Add buffer with id to the ring. Does not update the tail
+    #[inline]
+    pub unsafe fn add_bid(&mut self, bid: u16) -> () {
+        let old_tail = self.local_tail.get();
+        self.local_tail.set(old_tail.wrapping_add(1));
+        let ring_idx = old_tail & 255;
+
+        let entries = self.ring_start.as_ptr_mut() as *mut BufRingEntry;
+
+        // SAFETY: Our owned AnonymousMmap holds the validity
+        let new_entry = unsafe { &mut *entries.add(ring_idx as usize) };
+        // SAFETY: Our owned AnonymousMmap holds the validity
+        let aligned_bid_ptr = unsafe { self.base_ptr.add(ring_idx as usize * 8192) };
+        new_entry.set_addr(aligned_bid_ptr as _);
+        new_entry.set_len(8192 as _);
+        new_entry.set_bid(bid);
+    }
+    /// The current tail of the bufring
+    #[inline]
+    pub fn cur_tail(&mut self) -> u16 {
+        unsafe { (*self.shared_tail).load(Ordering::Acquire) }
+    }
+    #[inline]
+    pub fn update_tail(&mut self, idx: u16) -> () {}
     /// Provides the ring start mut ptr e.g. using it to register it with io_uring.
     ///
     /// ## Safety
@@ -222,6 +270,14 @@ impl RingBufRegistered {
             Err(e) => Err(RingBufError::Unregister(self, e)),
             Ok(()) => Ok(self.inner_ring),
         }
+    }
+    #[inline]
+    pub fn cur_tail(&mut self) -> u16 {
+        self.inner_ring.cur_tail()
+    }
+    #[inline]
+    pub unsafe fn dropping_bid(&mut self, bid: u16) -> () {
+        self.inner_ring.dropping_bid(bid)
     }
 }
 
