@@ -50,6 +50,8 @@ impl<C: core::fmt::Debug + Clone + OpCompletion> UringBearer<C> {
         fixed_fd: u32,
         raw_buf_ptr: *const u8,
         raw_buf_size: u32,
+        buf_index: Option<u16>,
+        buf_ref: usize,
         to_addr: Option<DestTo>,
         flags: Option<SubmissionFlags>,
     ) -> Result<usize, UringBearerError> {
@@ -59,6 +61,8 @@ impl<C: core::fmt::Debug + Clone + OpCompletion> UringBearer<C> {
                 fixed_fd,
                 raw_buf_ptr,
                 raw_buf_size,
+                buf_index,
+                buf_ref,
                 to_addr,
             )))
             .map_err(UringBearerError::Slabbable)?;

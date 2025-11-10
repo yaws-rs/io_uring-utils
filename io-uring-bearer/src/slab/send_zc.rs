@@ -22,6 +22,13 @@ impl SendZcRec {
             Self::UnsafeRef(fr) => fr.fixed_fd,
         }
     }
+    #[inline]
+    pub fn buf_ref(&self) -> Option<usize> {
+        match self {
+            Self::Fixed(_) => None,
+            Self::UnsafeRef(fr) => Some(fr.buf_ref),
+        }
+    }
 }
 
 /// SendZc Fixed Record
@@ -41,6 +48,8 @@ pub struct SendZcUnsafeRefRec {
     owner: Owner,
     buf_const_u8: *const u8,
     buf_size: u32,
+    buf_index: Option<u16>,
+    buf_ref: usize,
     #[allow(dead_code)]
     to_addr: Option<DestTo>,
 }
@@ -62,6 +71,8 @@ impl SendZcRec {
         fixed_fd: u32,
         buf_const_u8: *const u8,
         buf_size: u32,
+        buf_index: Option<u16>,
+        buf_ref: usize,
         to_addr: Option<DestTo>,
     ) -> Self {
         Self::UnsafeRef(SendZcUnsafeRefRec {
@@ -69,6 +80,8 @@ impl SendZcRec {
             owner: Owner::Created,
             buf_const_u8,
             buf_size,
+            buf_index,
+            buf_ref,
             to_addr,
         })
     }
@@ -83,7 +96,12 @@ impl SendZcRec {
                 None,
                 //                Some(f_rec.buf_taken.buf_kernel_index),
             ),
-            Self::UnsafeRef(u_rec) => (u_rec.fixed_fd, u_rec.buf_const_u8, u_rec.buf_size, None),
+            Self::UnsafeRef(u_rec) => (
+                u_rec.fixed_fd,
+                u_rec.buf_const_u8,
+                u_rec.buf_size,
+                u_rec.buf_index,
+            ),
         };
 
         io_uring::opcode::SendZc::new(io_uring::types::Fixed(fixed_fd), buf_const_u8, buf_size)
