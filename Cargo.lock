@@ -69,7 +69,7 @@ dependencies = [
 
 [[package]]
 name = "io-uring-bearer"
-version = "0.2.0-pre3"
+version = "0.2.0-pre4"
 dependencies = [
  "capacity",
  "hashbrown",
@@ -86,16 +86,12 @@ dependencies = [
 
 [[package]]
 name = "io-uring-bufring"
-version = "0.1.0"
+version = "0.2.0-pre4"
 dependencies = [
  "anonymous-mmap",
- "capacity",
  "io-uring",
  "io-uring-bearer",
- "io-uring-opcode",
- "io-uring-opcode-sets",
  "libc",
- "ysockaddr",
 ]
 
 [[package]]
@@ -131,6 +127,20 @@ dependencies = [
 
 [[package]]
 name = "io-uring-op-connect"
+version = "0.0.2"
+dependencies = [
+ "capacity",
+ "io-uring",
+ "io-uring-bearer",
+ "io-uring-fd",
+ "io-uring-opcode",
+ "io-uring-owner",
+ "libc",
+ "ysockaddr",
+]
+
+[[package]]
+name = "io-uring-op-send-zc"
 version = "0.0.1"
 dependencies = [
  "capacity",
@@ -159,23 +169,12 @@ dependencies = [
 
 [[package]]
 name = "io-uring-opcode"
-version = "0.2.0-pre3"
+version = "0.2.0-pre4"
 dependencies = [
  "io-uring",
  "io-uring-owner",
  "libc",
  "ysockaddr",
-]
-
-[[package]]
-name = "io-uring-opcode-sets"
-version = "0.0.1-whatever0"
-dependencies = [
- "io-uring",
- "io-uring-op-connect",
- "io-uring-op-socket",
- "io-uring-opcode",
- "io-uring-owner",
 ]
 
 [[package]]
