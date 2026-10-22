@@ -143,7 +143,9 @@ impl<C: core::fmt::Debug + Clone + OpCompletion> UringBearer<C> {
     {
         let iou = &mut self.io_uring;
         let mut c_queue = iou.completion();
+        let mut cur: u32 = 0;
         while let Some(item) = c_queue.next() {
+            cur+=1;
             let key = item.user_data();
             let a_rec_t = self
                 .fd_slab
@@ -156,6 +158,11 @@ impl<C: core::fmt::Debug + Clone + OpCompletion> UringBearer<C> {
                     self.fd_slab
                         .mark_for_reuse(key as usize)
                         .map_err(UringBearerError::Slabbable)?;
+                }
+            }
+            if let Some(t_limit) = limit {
+                if t_limit == cur {
+                    break;
                 }
             }
         }

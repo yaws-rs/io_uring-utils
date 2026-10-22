@@ -195,8 +195,8 @@ impl RingBufUnregistered {
     pub fn cur_tail(&mut self) -> u16 {
         unsafe { (*self.shared_tail).load(Ordering::Acquire) }
     }
-    #[inline]
-    pub fn update_tail(&mut self, idx: u16) -> () {}
+    //#[inline]
+    //pub fn update_tail(&mut self, _idx: u16) -> () {}
     /// Provides the ring start mut ptr e.g. using it to register it with io_uring.
     ///
     /// ## Safety
@@ -271,10 +271,12 @@ impl RingBufRegistered {
             Ok(()) => Ok(self.inner_ring),
         }
     }
+    /// Current tail
     #[inline]
     pub fn cur_tail(&mut self) -> u16 {
         self.inner_ring.cur_tail()
     }
+    /// Dropping bid
     #[inline]
     pub unsafe fn dropping_bid(&mut self, bid: u16) -> () {
         self.inner_ring.dropping_bid(bid)

@@ -15,6 +15,7 @@ pub enum SendZcRec {
 }
 
 impl SendZcRec {
+    /// Get the associated fixed fd
     #[inline]
     pub fn fixed_fd(&self) -> u32 {
         match self {
@@ -22,6 +23,7 @@ impl SendZcRec {
             Self::UnsafeRef(fr) => fr.fixed_fd,
         }
     }
+    /// Get the associated buf reference
     #[inline]
     pub fn buf_ref(&self) -> Option<usize> {
         match self {
